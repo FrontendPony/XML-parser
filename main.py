@@ -5,16 +5,59 @@ from PyQt6 import QtWidgets
 from sqlalchemy import create_engine
 import datetime
 from dbsettings import database_parametres
-from interface_updated import Ui_MainWindow
-from xml_parser.parser_article import parse_articles_to_excel
-from xml_parser.parser_authors import extract_authors_info
-from xml_parser.parser_unique_organizations import parse_affilations_to_excel
-# from parser_article import parse_articles_to_excel
-# from parser_authors import extract_authors_info
-# from parser_unique_organizations import parse_affilations_to_excel
+from interface import Ui_MainWindow
+from interface import Ui_Dialog
 import psycopg2
+from find_file_origin import update_excel_file
+from parsers_two_table.entire_parser import parse_articles_to_excel
+from parsers_two_table.findPeopleWithoutID import update_author_id
+from parsers_two_table.findOrganisationsWithoutID import update_org_id
 
+class Dialog(QtWidgets.QDialog):
+    def __init__(self, data_1, data_2, index_array_1, index_array_2):
+        super(Dialog, self).__init__()
+        self.ui_dialog = Ui_Dialog()
+        self.ui_dialog.setupUi(self)
+        self.fillDialogTables(data_1, data_2, index_array_1, index_array_2)
+        self.button_lower_table_choice = self.findChild(QPushButton, "button_lower_table_choice")
+        self.button_lower_table_choice.clicked.connect(lambda: self.lowertableClicked(data_1, data_2, index_array_1, index_array_2))
+        self.button_upper_table_choice = self.findChild(QPushButton, "button_upper_table_choice")
+        self.button_upper_table_choice.clicked.connect(lambda: self.uppertableClicked(data_1, data_2, index_array_1, index_array_2))
+        self.ui_dialog.label.setText(f'Осталось выбрать {len(data_1)} строк')
 
+    def fillDialogTables(self, data_1, data_2, index_array_1, index_array_2):
+        self.ui_dialog.row_from_database.clearContents()
+        self.ui_dialog.row_from_excel.clearContents()
+        for i in range(len(data_1)):
+            for j in range(26):
+                item = QtWidgets.QTableWidgetItem(str(data_1[i][j]))
+                self.ui_dialog.row_from_database.setItem(i, j, item)
+        for i in range(len(data_2)):
+            for j in range(26):
+                item = QtWidgets.QTableWidgetItem(str(data_2[i][j]))
+                self.ui_dialog.row_from_excel.setItem(i, j, item)
+
+    def lowertableClicked(self, data_1, data_2, index_array_1, index_array_2):
+        if len(data_1) > 0:
+            data_1.pop(0)
+            data_2.pop(0)
+            index_array_2.pop(0)
+            self.ui_dialog.label.setText(f'Осталось выбрать {len(data_1)} строк')
+        if len(data_1) > 0:
+            self.fillDialogTables(data_1, data_2, index_array_1, index_array_2)
+        else:
+            self.close()
+
+    def uppertableClicked(self, data_1, data_2, index_array_1, index_array_2):
+        if len(data_1) > 0:
+            data_1.pop(0)
+            data_2.pop(0)
+            index_array_1.pop(0)
+            self.ui_dialog.label.setText(f'Осталось выбрать {len(data_1)} строк')
+        if len(data_1) > 0:
+            self.fillDialogTables(data_1, data_2, index_array_1, index_array_2)
+        else:
+            self.close()
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -27,47 +70,86 @@ class MainWindow(QMainWindow):
         self.import_button_onlyiconwidget = self.findChild(QPushButton, "import_button_onlyiconwidget")
         self.import_button_onlyiconwidget.clicked.connect(self.importButtonClickHandler)
         self.export_button = self.findChild(QPushButton, "pushButton")
-        self.export_button.clicked.connect(self.process_data)
+        self.export_button.clicked.connect(self.getYearAndSurname)
         self.import_button_expandedwidget = self.findChild(QPushButton, "import_button_expandedwidget")
         self.import_button_expandedwidget.clicked.connect(self.importButtonClickHandler)
         self.search_button = self.findChild(QPushButton, "Primary")
         self.search_button.clicked.connect(self.get_text)
-        self.search_button = self.findChild(QPushButton, "general_data_export_button")
-        self.search_button.clicked.connect(self.get_test_auf)
+        self.preview_button = self.findChild(QPushButton, "Primary_3")
+        self.preview_button.clicked.connect(self.getYearAndSurname)
+        # self.search_button = self.findChild(QPushButton, "general_data_export_button")
+        # self.search_button.clicked.connect(self.get_test_auf)
         self.user_button = self.findChild(QPushButton, "user_button")
         self.user_button.clicked.connect(lambda: self.authorsReferenceToSQL(database_parametres))
         self.add_one_row_button = self.findChild(QPushButton, "add_one_row_button")
         self.add_one_row_button.clicked.connect(self.addOneRowToDB)
 
-    def process_data(self):
-        connection = psycopg2.connect(
-            dbname=database_parametres['dbname'],
-            user=database_parametres['user'],
-            password=database_parametres['password'],
-            host=database_parametres['host'],
-            port=database_parametres['port']
-        )
+    def showDialog(self, data_1, data_2, index_array_1, index_array_2):
+        self.dialog_instance = Dialog(data_1, data_2, index_array_1, index_array_2)
+        self.dialog_instance.show()
+        self.dialog_instance.exec()
 
-        cursor = connection.cursor()
+    # def deleteRowOnChoice(self, data_2):
+    #     print(123)
+    #     item_id = data_2[0][0]
+    #     author_id = data_2[0][1]
+    #     author_name = data_2[0][2]
+    #     print(item_id, author_id, author_name)
+    #     conn = psycopg2.connect(database=database_parametres['dbname'],
+    #                             user=database_parametres['user'],
+    #                             password=database_parametres['password'],
+    #                             host=database_parametres['host'],
+    #                             port=database_parametres['port'])
+    #     cur = conn.cursor()
+    #     print(123)
+    #     try:
+    #         delete_query = """
+    #                DELETE FROM article_author
+    #                 WHERE item_id = %s AND
+    #                 author_id = %s AND
+    #                 author_name = %s
+    #                """
+    #         cur.execute(delete_query, (item_id, author_id, author_name))
+    #         conn.commit()
+    #         print("Row deleted successfully.")
+    #
+    #     except Exception as e:
+    #         print("Error:", e)
+    #         conn.rollback()
+    #
+    #     finally:
+    #         cur.close()
+    #         conn.close()
 
-        sql_query = """
-          SELECT DISTINCT
-            article.item_id,
-            article.doi,
-            article.year,
-            article.title_article,
-            article.publisher,
-            article.type,
-            article.risc,
-            article.issn,
-            article.edn,
-            article_author.author_id,
+    def process_data(self, where):
+        try:
+            connection = psycopg2.connect(
+                dbname=database_parametres['dbname'],
+                user=database_parametres['user'],
+                password=database_parametres['password'],
+                host=database_parametres['host'],
+                port=database_parametres['port']
+            )
+            cursor = connection.cursor()
+            sql_query = """
+            SELECT DISTINCT
+			whole_table.linkurl,
+            whole_table.doi,
+            whole_table.year,
+            whole_table.title_article,
+            whole_table.publisher,
+           	whole_table.type,
+            whole_table.risc,
+            whole_table.issn,
+            whole_table.edn,
+            whole_table.author_id,
+            whole_table.org_id,
+            whole_table.org_name,
+			whole_table.item_id,
 			CASE
-  			WHEN authors_splitted.lastname ~ '[A-Za-z]' AND authors_reference_with_id.birth_year IS NOT NULL  THEN authors_reference_with_id.lastname
-  			ELSE authors_splitted.lastname
+  			WHEN authors_splitted.author_name ~ '[A-Za-z]' AND authors_reference_with_id.birth_year IS NOT NULL  THEN authors_reference_with_id.lastname
+  			ELSE authors_splitted.author_name
 			END AS last_name,
-            authors_organisations.org_id,
-            authors_organisations.org_name,
             CASE
   			WHEN (authors_splitted.first_name LIKE '%.%' AND authors_reference_with_id.birth_year IS NOT NULL) OR (authors_splitted.first_name ~ '[A-Za-z]' AND authors_reference_with_id.birth_year IS NOT NULL) OR authors_splitted.first_name IS NULL 
 			THEN authors_reference_with_id.first_name
@@ -82,66 +164,194 @@ class MainWindow(QMainWindow):
 			authors_reference_with_id.academic_degree,
 			authors_reference_with_id.employment_relationship,
 			authors_reference_with_id.birth_year,
-            nested_auth.author_count
+			nested_aff.affilations_count,
+			nested_auth.author_count
         FROM
-            authors_splitted
-        JOIN
-            authors_organisations  ON CAST(authors_splitted.author_id AS text) = authors_organisations.author_id
-			OR (authors_splitted.author_id IS NULL AND  authors_organisations.author_id IS NULL)
-			AND authors_splitted.lastname = authors_organisations.author_name
-        JOIN
-            article_author  ON CAST(article_author.author_id AS text)  = authors_organisations.author_id
-			OR (article_author.author_id IS NULL AND  authors_organisations.author_id IS NULL)
-			AND authors_organisations.author_name = article_author.author_name
-        JOIN
-            article  ON article.item_id = article_author.item_id
-		LEFT JOIN
-			authors_reference_with_id  ON CAST(authors_reference_with_id.author_id AS text) = authors_organisations.author_id
-        JOIN
+            whole_table 
+		JOIN 
+			authors_splitted ON authors_splitted.item_id = whole_table.item_id AND authors_splitted.author_name = whole_table.author_name AND authors_splitted.author_initials = whole_table.author_initials
+		LEFT JOIN 
+			authors_reference_with_id  ON CAST(authors_reference_with_id.author_id AS text) = whole_table.author_id
+		 JOIN
             (
-                SELECT item_id, COUNT(author_name) AS author_count
-                FROM article_author
+                SELECT item_id, COUNT(item_id) AS author_count
+                FROM author_count_helper
                 GROUP BY item_id
-            ) AS nested_auth ON article.item_id = nested_auth.item_id
-        WHERE
-            authors_organisations.org_id = '570'
-                """
+            ) AS nested_auth ON whole_table.item_id = nested_auth.item_id
+		JOIN
+            (
+                SELECT item_id,author_name,author_initials, COUNT(org_name) AS affilations_count
+                FROM whole_table
+                GROUP BY item_id,author_name,author_initials
+            ) AS nested_aff ON whole_table.item_id = nested_aff.item_id AND nested_aff.author_name = whole_table.author_name AND nested_aff.author_initials = whole_table.author_initials
+		WHERE whole_table.org_id = '570'
+		ORDER BY doi
+            """
+            cursor.execute(sql_query)
+            result = cursor.fetchall()
+            columns = [desc[0] for desc in cursor.description]
+            df = pd.DataFrame(result, columns=columns)
+            cursor.close()
+            connection.close()
 
-        cursor.execute(sql_query)
-        result = cursor.fetchall()
+            excel_template_path = "../article_data_base/shablon_kbpr.xlsx"
+            df_template = pd.read_excel(excel_template_path)
+            df_template['Идентификатор DOI *'] = df['doi']
+            df_template['Количество авторов *'] = df['author_count']
+            df_template['Фамилия *'] = df['last_name']
+            df_template['Имя *'] = df['first_name']
+            df_template['Отчество'] = df['patronymic']
+            df_template['Должность *'] = df['position']
+            df_template['Ученая степень *'] = df['academic_degree']
+            df_template['Тип трудовых отношений *'] = df['employment_relationship']
+            df_template['Год рождения *'] = df['birth_year']
+            df_template['Количество аффиляций *'] = df['affilations_count']
+            df_template['Аффиляция *'] = df['org_name']
+            df_template['Дата публикации *'] = pd.to_datetime(df['year'], format='%Y').dt.strftime('01/01/%Y')
+            df_template['Наименование публикации *'] = df['title_article']
+            df_template['Наименование издания *'] = df['publisher']
+            df_template['Вид издания  *'] = df['type']
+            df_template['Идентификатор РИНЦ'] = df['risc']
+            df_template['Идентификатор ISSN'] = df['issn']
+            df_template['Идентификатор EDN'] = df['edn']
+            df_template['URL'] = df['linkurl']
 
-        columns = [desc[0] for desc in cursor.description]
-        df = pd.DataFrame(result, columns=columns)
+            timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+            output_path = f"shablon_kbpr_{timestamp}.xlsx"
+            df_template.to_excel(output_path)
+            QMessageBox.information(self, "Экспорт", "Excel файл по шаблону кбпр создан!")
 
-        cursor.close()
-        connection.close()
+        except Exception as e:
+            print(e)
+            QMessageBox.critical(self, "Ошибка", f"Произошла ошибка: {str(e)}")
+        finally:
+            try:
+                cursor.close()
+            except:
+                pass
+            try:
+                connection.close()
+            except:
+                pass
 
-        excel_template_path = "../article_data_base/shablon_kbpr.xlsx"
-        df_template = pd.read_excel(excel_template_path)
+    def process_data_advanced(self, where):
+            try:
+                connection = psycopg2.connect(
+                    dbname=database_parametres['dbname'],
+                    user=database_parametres['user'],
+                    password=database_parametres['password'],
+                    host=database_parametres['host'],
+                    port=database_parametres['port']
+                )
 
-        df_template['Идентификатор DOI *'] = df['doi']
-        df_template['Количество авторов *'] = df['author_count']
-        df_template['Фамилия *'] = df['last_name']
-        df_template['Имя *'] = df['first_name']
-        df_template['Отчество'] = df['patronymic']
-        df_template['Должность *'] = df['position']
-        df_template['Ученая степень *'] = df['academic_degree']
-        df_template['Тип трудовых отношений *'] = df['employment_relationship']
-        df_template['Год рождения *'] = df['birth_year']
-        # df_template['Количество аффиляций *'] = df['aff_count']
-        df_template['Аффиляция *'] = df['org_name']
-        df_template['Дата публикации *'] = pd.to_datetime(df['year'], format='%Y').dt.strftime('01/01/%Y')
-        df_template['Наименование публикации *'] = df['title_article']
-        df_template['Наименование издания *'] = df['publisher']
-        df_template['Вид издания  *'] = df['type']
-        df_template['Идентификатор РИНЦ'] = df['risc']
-        df_template['Идентификатор ISSN'] = df['issn']
-        df_template['Идентификатор EDN'] = df['edn']
+                cursor = connection.cursor()
 
-        timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        output_path = f"shablon_kbpr_{timestamp}.xlsx"
-        df_template.to_excel(output_path)
-        QMessageBox.information(self, "Экспорт", "Excel файл по шаблону кбпр создан!")
+                sql_query = """
+                SELECT *
+FROM (
+     SELECT DISTINCT
+			whole_table.linkurl,
+            whole_table.doi,
+            whole_table.year,
+            whole_table.title_article,
+            whole_table.publisher,
+           	whole_table.type,
+            whole_table.risc,
+            whole_table.issn,
+            whole_table.edn,
+            whole_table.author_id,
+            whole_table.org_id,
+            whole_table.org_name,
+			whole_table.item_id,
+			CASE
+  			WHEN authors_splitted.author_name ~ '[A-Za-z]' AND authors_reference_with_id.birth_year IS NOT NULL  THEN authors_reference_with_id.lastname
+  			ELSE authors_splitted.author_name
+			END AS last_name,
+            CASE
+  			WHEN (authors_splitted.first_name LIKE '%.%' AND authors_reference_with_id.birth_year IS NOT NULL) OR (authors_splitted.first_name ~ '[A-Za-z]' AND authors_reference_with_id.birth_year IS NOT NULL) OR authors_splitted.first_name IS NULL 
+			THEN authors_reference_with_id.first_name
+  			ELSE authors_splitted.first_name
+			END AS first_name,
+			CASE
+  			WHEN (authors_splitted.patronymic LIKE '%.%' AND authors_reference_with_id.birth_year IS NOT NULL) OR authors_splitted.patronymic IS NULL OR (authors_splitted.patronymic ~ '[A-Za-z]'  AND authors_reference_with_id.birth_year IS NOT NULL)
+			THEN authors_reference_with_id.patronymic
+  			ELSE authors_splitted.patronymic
+			END AS patronymic,
+			authors_reference_with_id.position,
+			authors_reference_with_id.academic_degree,
+			authors_reference_with_id.employment_relationship,
+			authors_reference_with_id.birth_year,
+			nested_aff.affilations_count,
+			nested_auth.author_count
+        FROM
+            whole_table 
+		JOIN 
+			authors_splitted ON authors_splitted.item_id = whole_table.item_id AND authors_splitted.author_name = whole_table.author_name AND authors_splitted.author_initials = whole_table.author_initials
+		LEFT JOIN 
+			authors_reference_with_id  ON CAST(authors_reference_with_id.author_id AS text) = whole_table.author_id
+		 JOIN
+            (
+                SELECT item_id, COUNT(item_id) AS author_count
+                FROM author_count_helper
+                GROUP BY item_id
+            ) AS nested_auth ON whole_table.item_id = nested_auth.item_id
+		JOIN
+            (
+                SELECT item_id,author_name,author_initials, COUNT(org_name) AS affilations_count
+                FROM whole_table
+                GROUP BY item_id,author_name,author_initials
+            ) AS nested_aff ON whole_table.item_id = nested_aff.item_id AND nested_aff.author_name = whole_table.author_name AND nested_aff.author_initials = whole_table.author_initials
+		WHERE whole_table.org_id = '570'
+		ORDER BY doi
+        ) AS subquery
+        WHERE {0}
+                """.format(where[0])
+
+                cursor.execute(sql_query)
+                result = cursor.fetchall()
+                columns = [desc[0] for desc in cursor.description]
+                df = pd.DataFrame(result, columns=columns)
+                cursor.close()
+                connection.close()
+
+                excel_template_path = "../article_data_base/shablon_kbpr.xlsx"
+                df_template = pd.read_excel(excel_template_path)
+                df_template['Идентификатор DOI *'] = df['doi']
+                df_template['Количество авторов *'] = df['author_count']
+                df_template['Фамилия *'] = df['last_name']
+                df_template['Имя *'] = df['first_name']
+                df_template['Отчество'] = df['patronymic']
+                df_template['Должность *'] = df['position']
+                df_template['Ученая степень *'] = df['academic_degree']
+                df_template['Тип трудовых отношений *'] = df['employment_relationship']
+                df_template['Год рождения *'] = df['birth_year']
+                df_template['Количество аффиляций *'] = df['affilations_count']
+                df_template['Аффиляция *'] = df['org_name']
+                df_template['Дата публикации *'] = pd.to_datetime(df['year'], format='%Y').dt.strftime('01/01/%Y')
+                df_template['Наименование публикации *'] = df['title_article']
+                df_template['Наименование издания *'] = df['publisher']
+                df_template['Вид издания  *'] = df['type']
+                df_template['Идентификатор РИНЦ'] = df['risc']
+                df_template['Идентификатор ISSN'] = df['issn']
+                df_template['Идентификатор EDN'] = df['edn']
+                df_template['URL'] = df['linkurl']
+
+                timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+                output_path = f"shablon_kbpr_{timestamp}.xlsx"
+                df_template.to_excel(output_path)
+                QMessageBox.information(self, "Экспорт", "Excel файл по шаблону кбпр создан!")
+
+            except Exception as e:
+                QMessageBox.critical(self, "Ошибка", f"Произошла ошибка: {str(e)}")
+            finally:
+                try:
+                    cursor.close()
+                except:
+                    pass
+                try:
+                    connection.close()
+                except:
+                    pass
 
 
     def execute_query_with_params(self,query):
@@ -162,14 +372,23 @@ class MainWindow(QMainWindow):
         cur.close()
         conn.close()
 
-    deleteUselessDuplicatesFromASSTable_query = """
-            DELETE FROM authors_splitted
-            WHERE author_id IN 
-            (SELECT author_id
-            FROM authors_splitted
-            GROUP BY author_id
-            HAVING COUNT(author_id) > 1)
-            AND first_name LIKE '%.%' OR (initials NOT LIKE '% %' AND initials NOT LIKE '%.%')
+    deleteRowsFromWholeTableWithENRUSproblem_query = """
+            DELETE FROM 
+            whole_table
+            WHERE (item_id,author_name,author_initials,author_id) IN
+            (SELECT item_id,author_name,author_initials,author_id FROM affilations 
+            WHERE item_id IN (
+            SELECT item_id FROM affilations
+            WHERE author_id != ' ' 
+            GROUP BY item_id,author_id
+            HAVING count(author_name) > 1
+            ORDER BY item_id) AND
+            author_id IN (
+            SELECT author_id FROM affilations
+            WHERE author_id != ' ' 
+            GROUP BY item_id,author_id
+            HAVING count(author_name) > 1)
+            AND author_name  ~ '[A-Za-z]')
             """
 
     getOnlyDistinctRowsFromAATable_query = """
@@ -180,39 +399,35 @@ class MainWindow(QMainWindow):
             RENAME TO article_author;
             """
 
-    setEmptyValuesToNullAOTable_query = """
-            UPDATE authors_organisations
-            SET author_id = NULL WHERE author_id = ' ';
+    createAuthorCountTable_query = """
+            DROP TABLE IF EXISTS author_count_helper;
+            CREATE TABLE  author_count_helper AS
+            SELECT item_id,author_name,author_initials
+            FROM whole_table
+            GROUP BY item_id,author_name,author_initials
             """
-    setEmptyValuesToNullAATable_query = """
-            UPDATE article_author
-            SET author_id = NULL WHERE author_id IS NULL
-            """
-    setEmptyValuesToNullASSTable_query = """
-            UPDATE authors_splitted
-            SET author_id = NULL WHERE author_id IS NULL
-            """
+
     splitInitials_query = """
         DROP TABLE IF EXISTS authors_splitted;
         CREATE TABLE  authors_splitted AS
-        SELECT author_id, lastname,initials,
+        SELECT DISTINCT item_id,author_id, author_name,author_initials,
             CASE
-                WHEN initials LIKE '% %' THEN split_part(authors.initials, ' ', 1)
-                WHEN initials NOT LIKE '% %' AND initials NOT LIKE '%.%' THEN initials
-                WHEN initials LIKE '%.%' AND LENGTH(initials) = 2 THEN initials
-                WHEN initials LIKE '%.%' AND LENGTH(initials) = 4 THEN LEFT(initials, 2)
-				WHEN initials LIKE '%.%' AND LENGTH(initials) = 5 THEN LEFT(initials, 2)
-                ELSE initials
+                WHEN author_initials LIKE '% %' THEN split_part(whole_table.author_initials, ' ', 1)
+                WHEN author_initials NOT LIKE '% %' AND author_initials NOT LIKE '%.%' THEN author_initials
+                WHEN author_initials LIKE '%.%' AND LENGTH(author_initials) = 2 THEN author_initials
+                WHEN author_initials LIKE '%.%' AND LENGTH(author_initials) = 4 THEN LEFT(author_initials, 2)
+				WHEN author_initials LIKE '%.%' AND LENGTH(author_initials) = 5 THEN LEFT(author_initials, 2)
+                ELSE author_initials
             END AS first_name,
             CASE
-                WHEN initials LIKE '% %' THEN split_part(authors.initials, ' ', -1)
-                WHEN initials NOT LIKE '% %' AND initials NOT LIKE '%.%' THEN NULL
-                WHEN initials LIKE '%.%' AND LENGTH(initials) = 2 THEN NULL
-                WHEN initials LIKE '%.%' AND LENGTH(initials) = 4 THEN RIGHT(initials, 2)
-				WHEN initials LIKE '%.%' AND LENGTH(initials) = 5 THEN RIGHT(initials, 3)
-                ELSE initials
+                WHEN author_initials LIKE '% %' THEN split_part(whole_table.author_initials, ' ', -1)
+                WHEN author_initials NOT LIKE '% %' AND author_initials NOT LIKE '%.%' THEN NULL
+                WHEN author_initials LIKE '%.%' AND LENGTH(author_initials) = 2 THEN NULL
+                WHEN author_initials LIKE '%.%' AND LENGTH(author_initials) = 4 THEN RIGHT(author_initials, 2)
+				WHEN author_initials LIKE '%.%' AND LENGTH(author_initials) = 5 THEN RIGHT(author_initials, 3)
+                ELSE author_initials
             END AS patronymic
-        FROM authors;
+        FROM whole_table;
         """
     createAuthorsReference_query = """
         DROP TABLE IF EXISTS authors_reference_with_id;
@@ -233,141 +448,117 @@ class MainWindow(QMainWindow):
 	    ON (at.full_name) = (ar."Автор публикации")
         WHERE author_id IS NOT NULL
         """
-    def import_xlsx_to_postgresql(self, database_params, xlsx_file_path, table_name,index_col,article):
-
-        articleTableIsEmpty = False
-        connection_str = f"postgresql://{database_params['user']}:{database_params['password']}@{database_params['host']}:{database_params['port']}/{database_params['dbname']}"
-        engine = create_engine(connection_str)
-
-        def replace_float_with_null(value):
-            if isinstance(value, float):
-                return pd.NA
-            return value
-
-        float_columns = [
-            'linkurl',
-            'genre',
-            'type',
-            'journal_title',
-            'issn',
-            'eissn',
-            'publisher',
-            'vak',
-            'wos',
-            'scopus',
-            'number',
-            'page_begin',
-            'page_end',
-            'language',
-            'title_article',
-            'doi',
-            'edn',
-            'risc',
-            'corerisc',
-            'volume']
-        data_frame = pd.read_excel(xlsx_file_path,index_col=index_col)
-        if table_name == 'article':
-            for column in float_columns:
-                data_frame[column] = data_frame[column].apply(lambda x: replace_float_with_null(x))
-
-        existing_data_query = f"SELECT DISTINCT * FROM {table_name}"
-        existing_data = pd.read_sql(existing_data_query, engine)
-        if table_name == 'authors_organisations':
-            data_frame.reset_index(drop=True, inplace=True)
-            data_frame = data_frame.iloc[0:]
-            data_frame['author_id'] = data_frame['author_id'].replace(' ', pd.NA)
-        if table_name == 'article' and len(existing_data) == 0:
-            articleTableIsEmpty = True
-        if article and not articleTableIsEmpty:
-            column_types = existing_data.dtypes
-            column_types_excel = data_frame.dtypes
-            # print(column_types)
-            # print(column_types_excel)
-            unequal_columns = column_types_excel[column_types_excel != column_types]
-            # for column_name in unequal_columns.index:
-            #     print(f"\nColumn '{column_name}' has different types:")
-            #     print(f"existing_data: {column_types_excel[column_name]}")
-            for column in unequal_columns.index:
-                existing_data[column] = data_frame[column].astype(column_types_excel[column])
-        rows_before = len(existing_data)
-        if table_name == 'article_author':
-            merged_data = existing_data.merge(data_frame, how='outer')
-        else:
-            merged_data = existing_data.merge(data_frame, how='outer').drop_duplicates(keep=False)
-        # if table_name == 'article_author':
-        #     column_types = existing_data.dtypes
-        #     column_types_excel = data_frame.dtypes
-        #     column_types_merged = merged_data.dtypes
-        #     print(column_types)
-        #     print(column_types_excel)
-        #     print(column_types_merged)
-        # #     pd.set_option('display.max_columns', None)
-        # #     pd.set_option('display.max_rows', None)
-        # #     print(existing_data.select_dtypes(include=['object']).applymap(type))
-        # #     print(data_frame.select_dtypes(include=['object']).applymap(type))
-        merged_data_with_duplicates = existing_data.merge(data_frame, how='outer')
-        num_duplicates = len(merged_data_with_duplicates) - len(merged_data)
-        rows_added = len(merged_data) - rows_before
-        if rows_added >= 0:
-            print(f"Added to {table_name}  {rows_added} rows")
-        else:
-            print(f"Deleted from {table_name} {rows_added} rows")
-        print(f"Found {num_duplicates} in {table_name}")
-        print('                                        ')
-        merged_data.to_sql(table_name, engine, index=False, if_exists='replace')
 
 
+    def import_xlsx_to_postgresql2(self, database_params, xlsx_file_path, table_name, index_col):
+        try:
+            data_from_sql = []
+            data_from_excel = []
+            index_sql = []
+            index_excel = []
+            connection_str = f"postgresql://{database_params['user']}:{database_params['password']}@{database_params['host']}:{database_params['port']}/{database_params['dbname']}"
+            engine = create_engine(connection_str)
+
+            def replace_float_with_null(value):
+                if isinstance(value, float):
+                    return None
+                return value
+            float_columns = [
+                'linkurl',
+                'genre',
+                'type',
+                'journal_title',
+                'issn',
+                'eissn',
+                'publisher',
+                'vak',
+                'wos',
+                'scopus',
+                'number',
+                'page_begin',
+                'page_end',
+                'language',
+                'title_article',
+                'doi',
+                'edn',
+                'risc',
+                'corerisc']
+            data_frame = pd.read_excel(xlsx_file_path, index_col=index_col)
+            if table_name == 'authors_organisations':
+                data_frame.drop("author_fullname", axis=1, inplace=True)
+            if table_name == 'article':
+                for column in float_columns:
+                    data_frame[column] = data_frame[column].apply(lambda x: replace_float_with_null(x))
+            existing_data_query = f"SELECT DISTINCT * FROM {table_name}"
+            existing_data = pd.read_sql(existing_data_query, engine)
+            if table_name == 'article':
+                columns_to_compare = ['item_id', 'linkurl', 'genre', 'type', 'issn', 'eissn', 'publisher', 'vak', 'rcsi', 'wos', 'scopus', 'quartile', 'year', 'number', 'contnumber', 'volume', 'language', 'edn', 'grnti', 'risc', 'corerisc', 'doi', 'counter']
+                new_row = pd.DataFrame({'item_id': ''}, index=[0])
+                data_frame = pd.concat([data_frame, new_row])
+                merged_data = pd.concat([data_frame, existing_data]).drop_duplicates(keep=False)
+                merged_data.to_excel('merged.xlsx')
+                update_excel_file('merged.xlsx')
+                merged_data = pd.read_excel('merged.xlsx', index_col=0)
+                duplicate_rows = merged_data.duplicated(subset=columns_to_compare, keep=False)
+                duplicate_data = merged_data[duplicate_rows]
+                duplicate_data = duplicate_data.sort_values(by=['item_id', 'counter'])
+                duplicate_data.to_excel('duplicate.xlsx')
+                for index, row in duplicate_data.iterrows():
+                    if row['data_origin'] == 'sql':
+                        index_sql.append(index)
+                        data_from_sql.append(row[['item_id','linkurl', 'genre', 'type', 'journal_title', 'issn', 'eissn', 'publisher', 'vak',	'rcsi', 'wos', 'scopus', 'quartile', 'year', 'number', 'contnumber', 'volume', 'page_begin', 'page_end', 'language',
+                                         'doi',	'edn', 'grnti', 'risc', 'corerisc', 'counter']].values)
+                    elif row['data_origin'] == 'excel':
+                        index_excel.append(index)
+                        data_from_excel.append(row[['item_id', 'linkurl', 'genre', 'type', 'journal_title', 'issn', 'eissn',
+                                        'publisher', 'vak', 'rcsi', 'wos', 'scopus', 'quartile', 'year', 'number',
+                                        'contnumber', 'volume', 'page_begin', 'page_end', 'language',
+                                        'doi', 'edn', 'grnti', 'risc', 'corerisc', 'counter']].values)
+                if(len(data_from_sql) > 0):
+                    self.showDialog(data_from_sql, data_from_excel, index_sql, index_excel)
+                    merged_data = merged_data[~((merged_data.index.isin(index_sql)) & (merged_data['data_origin'] == 'sql'))]
+                    merged_data = merged_data[~((merged_data.index.isin(index_excel)) & (merged_data['data_origin'] == 'excel'))]
+                merged_data.drop("data_origin", axis=1, inplace=True)
+                merged_data = merged_data[merged_data['item_id'].str.len() > 0]
+                merged_data = merged_data.drop("Unnamed: 0", axis=1)
+                merged_data.to_sql(table_name, engine, if_exists='replace', index=False)
+            elif table_name == 'authors_organisations':
+                merged_data = pd.concat([data_frame, existing_data]).drop_duplicates(keep=False)
+                merged_data.to_sql(table_name, engine, if_exists='replace', index=False)
+        except Exception as e:
+            print(f"An error occurred: {e}")
+        finally:
+            pass
     def importButtonClickHandler(self):
         self.ui.progressBar.setValue(0)
         fname = QFileDialog.getOpenFileName(self, "Open XML file", "", "All Files (*);; XML Files (*.xml)")
         if fname[0]:
             parse_articles_to_excel(fname[0])
-            self.ui.progressBar.setValue(10)
-            parse_affilations_to_excel(fname[0])
-            self.ui.progressBar.setValue(20)
-            extract_authors_info(fname[0])
-            self.ui.progressBar.setValue(30)
-            self.import_xlsx_to_postgresql(database_parametres, 'article_author.xlsx', 'article_author', 0, False)
-            self.ui.progressBar.setValue(35)
-            self.import_xlsx_to_postgresql(database_parametres, 'article.xlsx', 'article', None, True)
-            self.ui.progressBar.setValue(40)
-            self.import_xlsx_to_postgresql(database_parametres, 'authors.xlsx', 'authors', 0,False)
-            self.ui.progressBar.setValue(45)
-            self.import_xlsx_to_postgresql(database_parametres, 'new_one_authors_organisations.xlsx', 'authors_organisations', 0,False)
-            self.ui.progressBar.setValue(50)
-            self.import_xlsx_to_postgresql(database_parametres, 'one_unique_organisations.xlsx', 'organisations',0,False)
-            self.ui.progressBar.setValue(55)
-            self.execute_query_with_params(self.setEmptyValuesToNullAOTable_query)
-            self.ui.progressBar.setValue(60)
-            self.execute_query_with_params(self.setEmptyValuesToNullAATable_query)
-            self.ui.progressBar.setValue(70)
-            self.execute_query_with_params(self.splitInitials_query)
-            self.ui.progressBar.setValue(75)
-            self.execute_query_with_params(self.deleteUselessDuplicatesFromASSTable_query)
-            self.ui.progressBar.setValue(80)
-            self.execute_query_with_params(self.setEmptyValuesToNullASSTable_query)
-            self.ui.progressBar.setValue(90)
-            self.execute_query_with_params(self.createAuthorsReference_query)
-            self.ui.progressBar.setValue(95)
-            self.execute_query_with_params(self.getOnlyDistinctRowsFromAATable_query)
-            self.ui.progressBar.setValue(100)
+            # self.ui.progressBar.setValue(10)
+            # self.ui.progressBar.setValue(20)
+            # self.ui.progressBar.setValue(30)
+            update_org_id('authors_organisations.xlsx')
+            update_author_id('authors_organisations.xlsx')
+            # self.ui.progressBar.setValue(40)
+            # self.ui.progressBar.setValue(50)
+            # self.import_xlsx_to_postgresql2(database_parametres, 'authors_organisations.xlsx', 'authors_organisations', None)
+            self.import_xlsx_to_postgresql2(database_parametres, 'article.xlsx', 'article', None)
+            # self.ui.progressBar.setValue(60)
+            # self.execute_query_with_params(self.createAuthorCountTable_query)
+            # self.ui.progressBar.setValue(70)
+            # self.execute_query_with_params(self.splitInitials_query)
+            # self.ui.progressBar.setValue(80)
+            # self.ui.progressBar.setValue(90)
+            # self.ui.progressBar.setValue(100)
             QMessageBox.information(self, "Успешный импорт", "Данные были перенесены в Базу Данных!")
         else:
             print("Выбор файла отменен. Файл не был перемещен.")
 
-    # def import_xlsx_to_postgresql(self, database_params, xlsx_file_path, table_name):
-    #     connection_str = f"postgresql://{database_params['user']}:{database_params['password']}@{database_params['host']}:{database_params['port']}/{database_params['dbname']}"
-    #     engine = create_engine(connection_str)
-    #     data_frame = pd.read_excel(xlsx_file_path)
-    #
-    #     data_frame.to_sql(table_name, engine, index=False, if_exists='replace')
-
     def searchButtonDBConnector(self, year, lastname):
         query = """
-                        SELECT a.item_id, aa.author_name, a.linkurl, a.genre, a.type, a.journal_title, a.publisher, a.title_article
-                        FROM article AS a
-                        INNER JOIN article_author AS aa ON aa.item_id = a.item_id
-                        WHERE a.year = '{year}' AND aa.author_name = '{lastname}'
+                        SELECT item_id, author_name, linkurl, genre, type, journal_title,publisher, title_article
+                        FROM whole_table 
+                        WHERE year = '{year}' AND author_name = '{lastname}'
                         """
 
         query = query.format(year=year, lastname=lastname)
@@ -384,13 +575,13 @@ class MainWindow(QMainWindow):
         for row_number, row_data in enumerate(result):
             self.ui.tableWidget.insertRow(row_number)
             for column_number, data in enumerate(row_data):
-                self.ui.tableWidget.setItem(row_number, column_number, QtWidgets.QTableWidgetItem(str(data)))
+             self.ui.tableWidget.setItem(row_number, column_number, QtWidgets.QTableWidgetItem(str(data)))
         cur.close()
         conn.close()
 
     def userChoicePatternFetchFromDB(self,columns):
         query = """
-                        SELECT DISTINCT {columns}
+        SELECT DISTINCT {columns}
         FROM authors_splitted
         JOIN authors_organisations ON CAST(authors_splitted.author_id AS text) = authors_organisations.author_id
                                    OR (authors_splitted.author_id IS NULL AND authors_organisations.author_id IS NULL)
@@ -495,6 +686,33 @@ class MainWindow(QMainWindow):
         selected_text = self.ui.comboBox.currentText()
         self.searchButtonDBConnector(selected_text, text)
 
+    def getYearAndSurname(self):
+        specify_where_basic = []
+        specify_where_advanced = []
+        text = self.ui.textEdit_2.toPlainText().strip()
+        selected_year_from = self.ui.comboBox_2.currentText()
+        selected_year_to = self.ui.comboBox_3.currentText()
+        if selected_year_from > selected_year_to:
+            QMessageBox.information(self, "Ошибка", "Проверьте диапозон годов")
+            return
+        else:
+            if selected_year_from == 'None' and selected_year_to == 'None' and text == '':
+             pass
+            elif (selected_year_from != 'None' and selected_year_to == 'None' and text == ''):
+             specify_where_basic.append(f" whole_table.year = {selected_year_from}")
+            elif (selected_year_from != 'None' and selected_year_to != 'None' and text == ''):
+             specify_where_basic.append(f" whole_table.year BETWEEN {selected_year_from} AND {selected_year_to}")
+            elif (selected_year_from != 'None' and selected_year_to != 'None' and text != ''):
+             specify_where_advanced.append(f" subquery.year BETWEEN {selected_year_from} AND {selected_year_to} AND last_name = '{text}'")
+            elif (selected_year_from != 'None' and selected_year_to == 'None' and text != ''):
+             specify_where_advanced.append(f" subquery.year = {selected_year_from} AND last_name = '{text}'")
+        if len(specify_where_basic) > 0 or (len(specify_where_basic) == 0 and len(specify_where_advanced) == 0 ):
+            print(specify_where_basic)
+            self.process_data(specify_where_basic)
+        else:
+            self.process_data_advanced(specify_where_advanced)
+            print(specify_where_advanced)
+
     def addOneRowToDB(self):
         for row in range(self.ui.tableWidget_add_row.rowCount()):
             row_data = []
@@ -505,129 +723,40 @@ class MainWindow(QMainWindow):
                     row_data.append(cell_data)
                 else:
                     row_data.append("NULL")
-            newRowForArticleTable = ', '.join(row_data[:26]) # article
-            newRowForAuthorSplittedTable = ', '.join([row_data[26],row_data[27],row_data[28],row_data[29],row_data[39]])  # auth_splitted
-            newRowForArticleAuthorTable = ', '.join([row_data[0], row_data[26], row_data[27]]) # article_author
-            newRowForAuthorsOrganisationsTable = ', '.join([row_data[26], row_data[27], row_data[37], row_data[38]]) #auth_org
-            newRowForOrganisationsTable = ', '.join([row_data[37], row_data[38]])  # organisations
-            newRowForAuthorsReferenceWithIDTable = ', '.join([row_data[26], row_data[30], row_data[27], row_data[28], row_data[29], row_data[31]
-            , row_data[32], row_data[33], row_data[34]]) # auth_ref_with_id
-            print(newRowForAuthorSplittedTable)
-            self.insertNewRowInArticleTable(newRowForArticleTable)
-            self.insertNewRowInAuthorsSplittedTable(newRowForAuthorSplittedTable)
-            self.insertNewRowInArticleAuthorTable(newRowForArticleAuthorTable)
-            self.insertNewRowInAuthorsOrganisationsTable(newRowForAuthorsOrganisationsTable)
-            self.insertNewRowInOrganisationsTable(newRowForOrganisationsTable)
-            self.insertNewRowInAuthorsReferenceTable(newRowForAuthorsReferenceWithIDTable)
+            print(row_data)
+            self.insertNewRowInWholeTable(row_data)
             QMessageBox.information(self, "Успешно", "Строка была добавлена в базу данных!")
 
-    def insertNewRowInArticleTable(self, row_1):
-        query = """
-                        INSERT INTO article VALUES
+    def insertNewRowInWholeTable(self, row_1):
+        try:
+            query = """
+                        INSERT INTO whole_table VALUES
                         ({});
                         """
+            query = query.format(row_1[0])
 
-        query = query.format(row_1)
-        conn = psycopg2.connect(database=database_parametres['dbname'],
-                                user=database_parametres['user'],
-                                password=database_parametres['password'],
-                                host=database_parametres['host'],
-                                port=database_parametres['port'])
-        cur = conn.cursor()
-        cur.execute(query)
-        conn.commit()
-        cur.close()
-        conn.close()
+            conn = psycopg2.connect(database=database_parametres['dbname'],
+                                    user=database_parametres['user'],
+                                    password=database_parametres['password'],
+                                    host=database_parametres['host'],
+                                    port=database_parametres['port'])
+            cur = conn.cursor()
+            cur.execute(query)
+            conn.commit()
 
-    def insertNewRowInAuthorsSplittedTable(self, row_1):
-        query = """
-                        INSERT INTO authors_splitted VALUES
-                        ({});
-                        """
+        except psycopg2.Error as e:
+            print(f"Error: {e}")
 
-        query = query.format(row_1)
-        conn = psycopg2.connect(database=database_parametres['dbname'],
-                                user=database_parametres['user'],
-                                password=database_parametres['password'],
-                                host=database_parametres['host'],
-                                port=database_parametres['port'])
-        cur = conn.cursor()
-        cur.execute(query)
-        conn.commit()
-        cur.close()
-        conn.close()
+        except Exception as e:
+            print(f"Unexpected Error: {e}")
 
-    def insertNewRowInArticleAuthorTable(self, row_1):
-        query = """
-                        INSERT INTO article_author VALUES
-                        ({});  
-                        """
+        finally:
+            if cur:
+                cur.close()
+            if conn:
+                conn.close()
 
-        query = query.format(row_1)
-        conn = psycopg2.connect(database=database_parametres['dbname'],
-                                user=database_parametres['user'],
-                                password=database_parametres['password'],
-                                host=database_parametres['host'],
-                                port=database_parametres['port'])
-        cur = conn.cursor()
-        cur.execute(query)
-        conn.commit()
-        cur.close()
-        conn.close()
 
-    def insertNewRowInAuthorsOrganisationsTable(self, row_1):
-        query = """
-                        INSERT INTO authors_organisations VALUES
-                        ({}); 
-                        """
-
-        query = query.format(row_1)
-        conn = psycopg2.connect(database=database_parametres['dbname'],
-                                user=database_parametres['user'],
-                                password=database_parametres['password'],
-                                host=database_parametres['host'],
-                                port=database_parametres['port'])
-        cur = conn.cursor()
-        cur.execute(query)
-        conn.commit()
-        cur.close()
-        conn.close()
-
-    def insertNewRowInOrganisationsTable(self, row_1):
-        query = """
-                        INSERT INTO organisations VALUES
-                        ({}); 
-                        """
-
-        query = query.format(row_1)
-        conn = psycopg2.connect(database=database_parametres['dbname'],
-                                user=database_parametres['user'],
-                                password=database_parametres['password'],
-                                host=database_parametres['host'],
-                                port=database_parametres['port'])
-        cur = conn.cursor()
-        cur.execute(query)
-        conn.commit()
-        cur.close()
-        conn.close()
-
-    def insertNewRowInAuthorsReferenceTable(self, row_1):
-        query = """
-                        INSERT INTO authors_reference_with_id VALUES
-                        ({});  
-                        """
-
-        query = query.format(row_1)
-        conn = psycopg2.connect(database=database_parametres['dbname'],
-                                user=database_parametres['user'],
-                                password=database_parametres['password'],
-                                host=database_parametres['host'],
-                                port=database_parametres['port'])
-        cur = conn.cursor()
-        cur.execute(query)
-        conn.commit()
-        cur.close()
-        conn.close()
     def authorsReferenceToSQL(self,database_params):
         fname = QFileDialog.getOpenFileName(self, "Open XML file", "", "All Files (*);; XML Files (*.xml)")
         if fname[0]:
@@ -655,50 +784,29 @@ class MainWindow(QMainWindow):
     def on_article_authorDB_button_iconwidget_toggled(self):
         self.ui.stackedWidget.setCurrentIndex(2)
 
-    def on_article_authorDB_button_toggled(self):
+    def on_addingdatatoBD_button_iconwidget_toggled(self):
         self.ui.stackedWidget.setCurrentIndex(2)
 
-    def on_authorsDB_button_iconwidget_toggled(self):
-        self.ui.stackedWidget.setCurrentIndex(3)
-
-    def on_authorsDB_button_toggled(self):
-        self.ui.stackedWidget.setCurrentIndex(3)
-
-    def on_authors_organisationsDB_button_iconwidget_toggled(self):
-        self.ui.stackedWidget.setCurrentIndex(4)
-
-    def on_authors_organisationsDB_button_toggled(self):
-        self.ui.stackedWidget.setCurrentIndex(4)
-
-    def on_organisationsDB_button_iconwidget_toggled(self):
-        self.ui.stackedWidget.setCurrentIndex(5)
-
-    def on_organisationsDB_button_toggled(self):
-        self.ui.stackedWidget.setCurrentIndex(5)
-
-    def on_addingdatatoBD_button_iconwidget_toggled(self):
-        self.ui.stackedWidget.setCurrentIndex(6)
-
     def on_addingdatatoBD_button_toggled(self):
-        self.ui.stackedWidget.setCurrentIndex(6)
+        self.ui.stackedWidget.setCurrentIndex(2)
 
     def on_export_button_onlyiconwidget_toggled(self):
-        self.ui.stackedWidget.setCurrentIndex(7)
+        self.ui.stackedWidget.setCurrentIndex(4)
 
     def on_export_button_expandedwidget_toggled(self):
-        self.ui.stackedWidget.setCurrentIndex(7)
+        self.ui.stackedWidget.setCurrentIndex(4)
 
     def on_import_button_onlyiconwidget_toggled(self):
-        self.ui.stackedWidget.setCurrentIndex(9)
+        self.ui.stackedWidget.setCurrentIndex(3)
 
     def on_import_button_expandedwidget_toggled(self):
-        self.ui.stackedWidget.setCurrentIndex(9)
+        self.ui.stackedWidget.setCurrentIndex(3)
 
     def on_pushButton_2_toggled(self):
-        self.ui.stackedWidget.setCurrentIndex(8)
+        self.ui.stackedWidget.setCurrentIndex(5)
 
     def on_pushButton_5_toggled(self):
-        self.ui.stackedWidget.setCurrentIndex(8)
+        self.ui.stackedWidget.setCurrentIndex(5)
 
 
 if __name__ == "__main__":

@@ -1,12 +1,52 @@
 from bs4 import BeautifulSoup
 import pandas as pd
-from check_errors import main_fix
+import os
+
 import tkinter
 from tkinter import messagebox
 import numpy as np
-
-
+from sqlalchemy import create_engine
+from dbsettings import database_parametres
+import psycopg2
+import re
+def extract_numbers_from_string(input_string):
+    pattern = r'\d+'
+    number = re.findall(pattern, input_string)
+    number = [int(num) for num in number]
+    return number
 def parse_articles_to_excel(xml_filename):
+    connection_str = f"postgresql://{database_parametres['user']}:{database_parametres['password']}@{database_parametres['host']}:{database_parametres['port']}/{database_parametres['dbname']}"
+    engine = create_engine(connection_str)
+    existing_data_query = f"SELECT * FROM authors_organisations"
+    existing_data = pd.read_sql(existing_data_query, engine)
+    counter_dict = {}
+    unique_pairs = set()
+
+    for _, row in existing_data.iterrows():
+        key = (str(row['author_id']), str(row['org_id']))
+        value = row['counter']
+        counter_dict[key] = value
+
+    for _, row in existing_data.iterrows():
+        pair = (str(row['author_id']), str(row['org_id']))
+        unique_pairs.add(pair)
+    print(counter_dict)
+    query = """
+                             SELECT MAX(counter) FROM authors_organisations
+                            """
+
+    conn = psycopg2.connect(
+        dbname=database_parametres['dbname'],
+        user=database_parametres['user'],
+        password=database_parametres['password'],
+        host=database_parametres['host'],
+        port=database_parametres['port']
+    )
+    cur = conn.cursor()
+    cur.execute(query)
+    fetcheData = cur.fetchone()
+    print(fetcheData)
+    number = extract_numbers_from_string(str(fetcheData))
     fields = {"item_id": [], 'linkurl': [], 'genre': [], 'type': [], "journal_title": [], "issn": [], "eissn": [],
               "publisher": [], "vak": [], "rcsi": [], "wos": [], "scopus": [], "quartile": [], "year": [], "number": [],
               'contnumber': [], "volume": [], "page_begin": [], "page_end": [], "language": [], "title_article": [],
@@ -17,9 +57,18 @@ def parse_articles_to_excel(xml_filename):
     soup = BeautifulSoup(xml_file, 'lxml')
 
     author_organisation = []
-    counter = 0
+    array_of_dicts = []
 
-    counter_all = 0
+    if len(number) == 0:
+        counter = 0
+        counter_all = 0
+    else:
+        counter = number[0]
+        counter_all = number[0]
+
+    unique_combinations = set()
+    counter_dict_fornull = {}
+    author_count = []
     for tag in soup.findAll("item"):
         # item
         fields['item_id'].append(tag['id'])
@@ -65,40 +114,109 @@ def parse_articles_to_excel(xml_filename):
         fields['corerisc'].append(tag.find('corerisc').text if tag.find('corerisc') is not None else "")
 
         count_author_org = []
-
-        # count of organisations
+        author = soup.find('author')
+        if author == tag.find('authors').findAll('author')[-1]:
+            num_value = author.find('num').text if author.find('num') is not None else " "
+            author_count.append(num_value)
         for author in tag.find('authors').findAll('author'):
             author_id = author.find('authorid').text if author.find('authorid') is not None else " "
             author_name = author.find('lastname').text if author.find('lastname') is not None else ""
             author_initials = author.find('initials').text if author.find('initials') is not None else ""
-
             try:
                 for aff in author.find('affiliations'):
-                    aff_id = aff.find('orgid').text if aff.find('orgid') is not None else " "
-                    aff_name = aff.find('orgname').text if aff.find('orgname') is not None else " "
+                    org_id = aff.find('orgid').text if aff.find('orgid') is not None else " "
+                    org_name = aff.find('orgname').text if aff.find('orgname') is not None else " "
 
-                    counter_all += 1
-                    count_author_org.append(counter_all)
+                    pair = (author_id, org_id)
+                    if author_id != " " and org_id != " ":
+                        if pair not in unique_pairs:
+                            unique_pairs.add(pair)
+                            counter_all += 1
+                            count_author_org.append(counter_all)
+                            counter += 1
+                            counter_dict[pair] = counter
+                            author_organisation.append([counter, author_id, author_name,author_initials, org_id, org_name])
+                        else:
+                            count_author_org.append(counter_dict[pair])
+                    else:
+                        key = (author_id, author_name + ' ' + author_initials, org_id, org_name)
+                        if (
+                                    (key[0], key[-1]) not in {(item[0], item[-1]) for item in unique_combinations}
+                           and (key[1], key[-1]) not in {(item[1], item[-1]) for item in unique_combinations}
+                                    or
+                                    (key[1], key[2]) not in {(item[1], item[2]) for item in unique_combinations}
+                                and (key[1], key[-1]) not in {(item[1], item[-1]) for item in unique_combinations}
+                            ):
+                         counter_all += 1
+                         counter += 1
+                         data_dict = {
+                             "counter": counter,
+                             "author_id": author_id,
+                             "author_name": author_name,
+                             "author_initials": author_initials,
+                             "org_id": org_id,
+                             "org_name": org_name
+                         }
+                         array_of_dicts.append(data_dict)
+                         count_author_org.append(counter_all)
+                         print(counter_dict_fornull)
+                         counter_dict_fornull[key] = counter
 
-                    counter += 1
-                    author_organisation.append([counter, author_id, author_name, author_initials, aff_id, aff_name])
+                         unique_combinations.add(key)
+                         author_organisation.append([counter, author_id, author_name, author_initials, org_id, org_name])
+                        else:
+                            count_author_org.append(counter_dict_fornull[key])
             except TypeError:
                 continue
-
         fields['counter'].append(count_author_org)
-
     article = pd.DataFrame(data=fields)
     article = article.explode('counter')
 
-    authors_organisations = pd.DataFrame(author_organisation, columns=['counter', 'author_id', 'author_name',
-                                                                       'author_initials', 'org_id', 'org_name'])
-
-    whole_table = article.merge(authors_organisations, how='inner')
-    whole_table.to_excel('whole_table.xlsx')
+    authors_organisations = pd.DataFrame(author_organisation,
+                                         columns=['counter', 'author_id', 'author_name', 'author_initials', 'org_id', 'org_name'])
+    authors_organisations['author_fullname'] = authors_organisations['author_name'] + ' ' + authors_organisations['author_initials']
+    authors_organisations.to_excel('authors_organisations.xlsx', index=False)
+    article.to_excel("article.xlsx", index=False)
     fd.close()
+
+    unique_author_pairs = set()
+    unique_org_names = set()
+    author_filtered_data = []
+    org_filtered_data = []
+
+    for data_dict in array_of_dicts:
+        author_id = data_dict.get("author_id")
+        author_name = data_dict.get("author_name")
+        author_initials = data_dict.get("author_initials")
+        org_id = data_dict.get("org_id")
+        org_name = data_dict.get("org_name")
+
+        if author_id == " " and (author_name, author_initials) not in unique_author_pairs:
+            unique_author_pairs.add((author_name, author_initials))
+            author_filtered_data.append({
+                "author_id": data_dict["author_id"],
+                "author_fullname": data_dict["author_name"] + ' ' + data_dict["author_initials"],
+            })
+
+        if org_id == " " and org_name not in unique_org_names:
+            unique_org_names.add(org_name)
+            org_filtered_data.append({"org_id": data_dict["org_id"],
+                "org_name": data_dict["org_name"]})
+
+
+    author_df = pd.DataFrame(author_filtered_data)
+    org_df = pd.DataFrame(org_filtered_data)
+
+    author_writer = pd.ExcelWriter('author_filtered_data.xlsx', engine='xlsxwriter')
+    author_df.to_excel(author_writer, sheet_name='Author Filtered Data', index=False)
+
+    author_writer._save()
+    org_writer = pd.ExcelWriter('org_filtered_data.xlsx', engine='xlsxwriter')
+    org_df.to_excel(org_writer, sheet_name='Org Filtered Data', index=False)
+    org_writer._save()
 
 
 if __name__ == "__main__":
-    parse_articles_to_excel('../xml_parser/article.xml')
+    parse_articles_to_excel('org_items_570_149195.xml')
 
 

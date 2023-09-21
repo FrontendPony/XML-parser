@@ -131,7 +131,7 @@
 		color:white;
 		background-color:#0a7e8c;
 		font-weight: bold;
-		font-size: 24pt;
+		font-size: 14pt;
 		border-radius: 25px;
 	}
 /*= END
@@ -175,3 +175,14 @@ MainWindow {
     background-color: #f5eded;
 }
 /*= END
+  /*= Style for user information button START
+  ==================================================== */
+	#changeDatainDatabaseButton_2 {
+		color:white;
+		background-color:#f3d64f;
+		font-weight: bold;
+		font-size: 14pt;
+		border-radius: 25px;
+	}
+/*= END
+

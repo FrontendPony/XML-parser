@@ -1,8 +1,31 @@
 from bs4 import BeautifulSoup
 import pandas as pd
-
+from dbsettings import database_parametres
+import psycopg2
+import re
+def extract_numbers_from_string(input_string):
+    pattern = r'\d+'
+    number = re.findall(pattern, input_string)
+    number = [int(num) for num in number]
+    return number
 
 def parse_articles_to_excel(xml_filename):
+    query = """
+                         SELECT MAX(counter) FROM article
+                        """
+
+    conn = psycopg2.connect(
+        dbname=database_parametres['dbname'],
+        user=database_parametres['user'],
+        password=database_parametres['password'],
+        host=database_parametres['host'],
+        port=database_parametres['port']
+    )
+    cur = conn.cursor()
+    cur.execute(query)
+    fetcheData = cur.fetchone()
+    number = extract_numbers_from_string(str(fetcheData))
+
     fields = {"item_id": [], 'linkurl': [], 'genre': [], 'type': [], "journal_title": [], "issn": [], "eissn": [],
               "publisher": [], "vak": [], "rcsi": [], "wos": [], "scopus": [], "quartile": [], "year": [], "number": [],
               'contnumber': [], "volume": [], "page_begin": [], "page_end": [], "language": [], "title_article": [],
@@ -12,7 +35,10 @@ def parse_articles_to_excel(xml_filename):
     xml_file = fd.read()
     soup = BeautifulSoup(xml_file, 'lxml')
 
-    counter_all = 0
+    if len(number) == 0:
+        counter_all = 0
+    else:
+        counter_all = number[0]
     for tag in soup.findAll("item"):
         # item
         fields['item_id'].append(tag['id'])
