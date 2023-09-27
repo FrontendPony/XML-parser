@@ -40,6 +40,7 @@ class Ui_Dialog(object):
         self.label.setObjectName("label")
         self.verticalLayout.addWidget(self.label)
         self.row_from_database = QtWidgets.QTableWidget(parent=self.widget)
+        column_names = self.getColumnNames()
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -57,6 +58,7 @@ class Ui_Dialog(object):
 "    }")
         self.row_from_database.setRowCount(1)
         self.row_from_database.setColumnCount(100)
+        self.row_from_database.setHorizontalHeaderLabels(column_names)
         self.row_from_database.setObjectName("row_from_database")
         self.row_from_database.horizontalHeader().setDefaultSectionSize(100)
         self.row_from_database.horizontalHeader().setMinimumSectionSize(50)
@@ -107,6 +109,7 @@ class Ui_Dialog(object):
 "    }")
         self.row_from_excel.setRowCount(1)
         self.row_from_excel.setColumnCount(100)
+        self.row_from_excel.setHorizontalHeaderLabels(column_names)
         self.row_from_excel.setObjectName("row_from_excel")
         self.row_from_excel.verticalHeader().setDefaultSectionSize(40)
         self.row_from_excel.verticalHeader().setMinimumSectionSize(40)
@@ -118,6 +121,14 @@ class Ui_Dialog(object):
         self.pushButton.clicked.connect(Dialog.hide) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(Dialog)
 
+    def getColumnNames(self):
+        query = "SELECT * FROM article WHERE 1=0;"
+        connection_str = f"postgresql://{database_parametres['user']}:{database_parametres['password']}@{database_parametres['host']}:{database_parametres['port']}/{database_parametres['dbname']}"
+        engine = create_engine(connection_str)
+        existing_data = pd.read_sql(query, engine)
+        data = pd.read_sql_query(query, engine)
+        column_names = data.columns.tolist()
+        return column_names
     def retranslateUi(self, Dialog):
         _translate = QtCore.QCoreApplication.translate
         Dialog.setWindowTitle(_translate("Dialog", "Dialog"))
@@ -343,7 +354,7 @@ class Ui_MainWindow(object):
         self.widget_2.setGeometry(QtCore.QRect(10, 0, 971, 831))
         self.widget_2.setObjectName("widget_2")
         self.pushButton = QtWidgets.QPushButton(parent=self.widget_2)
-        self.pushButton.setGeometry(QtCore.QRect(300, 720, 351, 101))
+        self.pushButton.setGeometry(QtCore.QRect(300, 20, 351, 101))
         self.pushButton.setIcon(icon2)
         self.pushButton.setIconSize(QtCore.QSize(90, 90))
         self.pushButton.setObjectName("pushButton")
@@ -808,7 +819,7 @@ class Ui_MainWindow(object):
         self.exit_button_expandedwidget.setText(_translate("MainWindow", "Выход"))
 
     def getColumnNames(self):
-        query = "SELECT * FROM whole_table WHERE 1=0;"
+        query = "SELECT * FROM article WHERE 1=0;"
         connection_str = f"postgresql://{database_parametres['user']}:{database_parametres['password']}@{database_parametres['host']}:{database_parametres['port']}/{database_parametres['dbname']}"
         engine = create_engine(connection_str)
         existing_data = pd.read_sql(query, engine)

@@ -7,6 +7,7 @@ def update_excel_file(input_file_path):
         df.loc[df.index[1], 'data_origin'] = 'sql'
         df.to_excel(input_file_path)
     else:
+        print(123)
         for i in range(1, len(df)):
             if df.index[i - 1] > df.index[i]:
                 df.iat[i, 27] = 'sql'
@@ -14,11 +15,13 @@ def update_excel_file(input_file_path):
         df = pd.read_excel(input_file_path)
         sql_index = df[df['data_origin'] == 'sql'].index[0]
         print(sql_index)
+        print(123)
         for index in range(sql_index + 1, len(df)):
             df.at[index, 'data_origin'] = 'sql'
         df.to_excel(input_file_path)
 
-
+if __name__ == "__main__":
+    update_excel_file('merged.xlsx')
 
 
 

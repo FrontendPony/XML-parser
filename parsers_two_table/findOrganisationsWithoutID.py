@@ -43,8 +43,6 @@ def update_org_id(excel_file_path):
                     return org_name_id_dict[row['org_name']]
                 else:
                     return ' '
-
-
             df_null['possible_id_from_xml'] = df_null.apply(compute_possible_id, axis=1)
         if len(filtered_rows_from_db) > 0:
 
@@ -61,17 +59,24 @@ def update_org_id(excel_file_path):
     except Exception as e:
         print("An error occurred:", str(e))
     df_null.to_excel('org_filtered_data.xlsx')
-    os.system(f'start excel org_filtered_data.xlsx')
-
+    def check_author_id(file_path):
+        df = pd.read_excel(file_path)
+        return all(df['org_id'] != ' ')
     while True:
-        time.sleep(1)
-        excel_running = False
-        for process in psutil.process_iter(attrs=['pid', 'name']):
-            if "EXCEL.EXE" in process.info['name']:
-                excel_running = True
+        os.system(f'start excel org_filtered_data.xlsx')
+        while True:
+            time.sleep(1)
+            excel_running = False
+            for process in psutil.process_iter(attrs=['pid', 'name']):
+                if "EXCEL.EXE" in process.info['name']:
+                    excel_running = True
+                    break
+            if not excel_running:
                 break
-        if not excel_running:
+        if check_author_id('org_filtered_data.xlsx'):
             break
+        else:
+            print("Some rows have empty 'org_id'. Rerunning the code.")
 
     print("Excel file has been closed. Now, running additional code.")
     def update_org_id(row):

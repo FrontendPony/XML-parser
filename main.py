@@ -1,7 +1,8 @@
 import sys
 from PyQt6.QtWidgets import QMainWindow, QApplication, QPushButton,QFileDialog,QMessageBox
 import pandas as pd
-from PyQt6 import QtWidgets
+from PyQt6 import QtWidgets, QtGui
+from PyQt6.QtGui import QColor
 from sqlalchemy import create_engine
 import datetime
 from dbsettings import database_parametres
@@ -12,6 +13,7 @@ from find_file_origin import update_excel_file
 from parsers_two_table.entire_parser import parse_articles_to_excel
 from parsers_two_table.findPeopleWithoutID import update_author_id
 from parsers_two_table.findOrganisationsWithoutID import update_org_id
+from find_duplicates import deduplicate_excel
 
 class Dialog(QtWidgets.QDialog):
     def __init__(self, data_1, data_2, index_array_1, index_array_2):
@@ -28,6 +30,14 @@ class Dialog(QtWidgets.QDialog):
     def fillDialogTables(self, data_1, data_2, index_array_1, index_array_2):
         self.ui_dialog.row_from_database.clearContents()
         self.ui_dialog.row_from_excel.clearContents()
+        some_row_index = 0
+        some_column_index = 0
+        for i in range(len(data_1)):
+            for j in range(26):
+                item = QtWidgets.QTableWidgetItem(str(data_1[i][j]))
+                if i == some_row_index and j == some_column_index:
+                    item.setBackground(QColor(255, 0, 0))
+                self.ui_dialog.row_from_database.setItem(i, j, item)
         for i in range(len(data_1)):
             for j in range(26):
                 item = QtWidgets.QTableWidgetItem(str(data_1[i][j]))
@@ -132,60 +142,40 @@ class MainWindow(QMainWindow):
             )
             cursor = connection.cursor()
             sql_query = """
-            SELECT DISTINCT
-			whole_table.linkurl,
-            whole_table.doi,
-            whole_table.year,
-            whole_table.title_article,
-            whole_table.publisher,
-           	whole_table.type,
-            whole_table.risc,
-            whole_table.issn,
-            whole_table.edn,
-            whole_table.author_id,
-            whole_table.org_id,
-            whole_table.org_name,
-			whole_table.item_id,
-			CASE
-  			WHEN authors_splitted.author_name ~ '[A-Za-z]' AND authors_reference_with_id.birth_year IS NOT NULL  THEN authors_reference_with_id.lastname
-  			ELSE authors_splitted.author_name
-			END AS last_name,
-            CASE
-  			WHEN (authors_splitted.first_name LIKE '%.%' AND authors_reference_with_id.birth_year IS NOT NULL) OR (authors_splitted.first_name ~ '[A-Za-z]' AND authors_reference_with_id.birth_year IS NOT NULL) OR authors_splitted.first_name IS NULL 
-			THEN authors_reference_with_id.first_name
-  			ELSE authors_splitted.first_name
-			END AS first_name,
-			CASE
-  			WHEN (authors_splitted.patronymic LIKE '%.%' AND authors_reference_with_id.birth_year IS NOT NULL) OR authors_splitted.patronymic IS NULL OR (authors_splitted.patronymic ~ '[A-Za-z]'  AND authors_reference_with_id.birth_year IS NOT NULL)
-			THEN authors_reference_with_id.patronymic
-  			ELSE authors_splitted.patronymic
-			END AS patronymic,
-			authors_reference_with_id.position,
-			authors_reference_with_id.academic_degree,
-			authors_reference_with_id.employment_relationship,
-			authors_reference_with_id.birth_year,
-			nested_aff.affilations_count,
-			nested_auth.author_count
+            with cte as (SELECT 
+			linkurl, count(DISTINCT author_id) as author_count
+			FROM
+            article 
+			JOIN 
+			authors_organisations USING(counter)
+			GROUP BY linkurl)
+SELECT * FROM (SELECT DISTINCT
+			article.linkurl,
+            article.doi,
+            article.year,
+            article.title_article,
+            article.publisher,
+           	article.type,
+            article.risc,
+            article.issn,
+            article.edn,
+            authors_organisations.author_id,
+			authors_organisations.author_name,
+			authors_organisations.author_initials,
+            authors_organisations.org_id,
+            authors_organisations.org_name,
+			cte.author_count,
+			COUNT(author_id) over affilations_cnt as affilations_count
         FROM
-            whole_table 
+            article 
 		JOIN 
-			authors_splitted ON authors_splitted.item_id = whole_table.item_id AND authors_splitted.author_name = whole_table.author_name AND authors_splitted.author_initials = whole_table.author_initials
-		LEFT JOIN 
-			authors_reference_with_id  ON CAST(authors_reference_with_id.author_id AS text) = whole_table.author_id
-		 JOIN
-            (
-                SELECT item_id, COUNT(item_id) AS author_count
-                FROM author_count_helper
-                GROUP BY item_id
-            ) AS nested_auth ON whole_table.item_id = nested_auth.item_id
+			authors_organisations USING(counter)
 		JOIN
-            (
-                SELECT item_id,author_name,author_initials, COUNT(org_name) AS affilations_count
-                FROM whole_table
-                GROUP BY item_id,author_name,author_initials
-            ) AS nested_aff ON whole_table.item_id = nested_aff.item_id AND nested_aff.author_name = whole_table.author_name AND nested_aff.author_initials = whole_table.author_initials
-		WHERE whole_table.org_id = '570'
-		ORDER BY doi
+			cte USING(linkurl)
+
+		window affilations_cnt as (partition by linkurl, author_id)
+		ORDER BY doi) AS foo
+		WHERE foo.org_id = 570
             """
             cursor.execute(sql_query)
             result = cursor.fetchall()
@@ -198,13 +188,13 @@ class MainWindow(QMainWindow):
             df_template = pd.read_excel(excel_template_path)
             df_template['Идентификатор DOI *'] = df['doi']
             df_template['Количество авторов *'] = df['author_count']
-            df_template['Фамилия *'] = df['last_name']
-            df_template['Имя *'] = df['first_name']
-            df_template['Отчество'] = df['patronymic']
-            df_template['Должность *'] = df['position']
-            df_template['Ученая степень *'] = df['academic_degree']
-            df_template['Тип трудовых отношений *'] = df['employment_relationship']
-            df_template['Год рождения *'] = df['birth_year']
+            df_template['Фамилия *'] = df['author_name']
+            df_template['Имя *'] = df['author_initials']
+            # df_template['Отчество'] = df['patronymic']
+            # df_template['Должность *'] = df['position']
+            # df_template['Ученая степень *'] = df['academic_degree']
+            # df_template['Тип трудовых отношений *'] = df['employment_relationship']
+            # df_template['Год рождения *'] = df['birth_year']
             df_template['Количество аффиляций *'] = df['affilations_count']
             df_template['Аффиляция *'] = df['org_name']
             df_template['Дата публикации *'] = pd.to_datetime(df['year'], format='%Y').dt.strftime('01/01/%Y')
@@ -458,7 +448,6 @@ FROM (
             index_excel = []
             connection_str = f"postgresql://{database_params['user']}:{database_params['password']}@{database_params['host']}:{database_params['port']}/{database_params['dbname']}"
             engine = create_engine(connection_str)
-
             def replace_float_with_null(value):
                 if isinstance(value, float):
                     return None
@@ -519,12 +508,16 @@ FROM (
                     merged_data = merged_data[~((merged_data.index.isin(index_sql)) & (merged_data['data_origin'] == 'sql'))]
                     merged_data = merged_data[~((merged_data.index.isin(index_excel)) & (merged_data['data_origin'] == 'excel'))]
                 merged_data.drop("data_origin", axis=1, inplace=True)
-                merged_data = merged_data[merged_data['item_id'].str.len() > 0]
+                merged_data = merged_data.dropna(how='all', subset=['item_id', 'linkurl', 'genre', 'type', 'journal_title', 'issn', 'eissn',
+                                        'publisher', 'vak', 'rcsi', 'wos', 'scopus', 'quartile', 'year', 'number',
+                                        'contnumber', 'volume', 'page_begin', 'page_end', 'language',
+                                        'doi', 'edn', 'grnti', 'risc', 'corerisc', 'counter'])
                 merged_data = merged_data.drop("Unnamed: 0", axis=1)
-                merged_data.to_sql(table_name, engine, if_exists='replace', index=False)
+                merged_data.to_excel('merged.xlsx')
+                # merged_data.to_sql(table_name, engine, if_exists='replace', index=False)
             elif table_name == 'authors_organisations':
                 merged_data = pd.concat([data_frame, existing_data]).drop_duplicates(keep=False)
-                merged_data.to_sql(table_name, engine, if_exists='replace', index=False)
+                # merged_data.to_sql(table_name, engine, if_exists='replace', index=False)
         except Exception as e:
             print(f"An error occurred: {e}")
         finally:
@@ -533,15 +526,16 @@ FROM (
         self.ui.progressBar.setValue(0)
         fname = QFileDialog.getOpenFileName(self, "Open XML file", "", "All Files (*);; XML Files (*.xml)")
         if fname[0]:
-            parse_articles_to_excel(fname[0])
+            # parse_articles_to_excel(fname[0])
             # self.ui.progressBar.setValue(10)
             # self.ui.progressBar.setValue(20)
             # self.ui.progressBar.setValue(30)
-            update_org_id('authors_organisations.xlsx')
-            update_author_id('authors_organisations.xlsx')
+            # update_org_id('authors_organisations.xlsx')
+            # update_author_id('authors_organisations.xlsx')
+            # deduplicate_excel('authors_organisations.xlsx')
             # self.ui.progressBar.setValue(40)
             # self.ui.progressBar.setValue(50)
-            # self.import_xlsx_to_postgresql2(database_parametres, 'authors_organisations.xlsx', 'authors_organisations', None)
+            self.import_xlsx_to_postgresql2(database_parametres, 'authors_organisations.xlsx', 'authors_organisations', None)
             self.import_xlsx_to_postgresql2(database_parametres, 'article.xlsx', 'article', None)
             # self.ui.progressBar.setValue(60)
             # self.execute_query_with_params(self.createAuthorCountTable_query)

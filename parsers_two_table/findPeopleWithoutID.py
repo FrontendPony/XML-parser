@@ -24,7 +24,7 @@ def update_author_id(excel_file_path):
         df_database = pd.read_sql_query(query, engine)
         author_id_list = df_database['author_id'].tolist()
         df = pd.read_excel(excel_file_path, index_col=0)
-        df_null = pd.read_excel('author_filtered_data.xlsx', index_col=0)
+        df_null = pd.read_excel('../author_filtered_data.xlsx', index_col=0)
         df_null['generated_ids'] = df_null.apply(lambda row: generate_unique_id(author_id_list), axis=1)
         df['author_id'] = df['author_id'].astype(str)
         unique_author_names = (df_null['author_fullname'])
@@ -60,17 +60,24 @@ def update_author_id(excel_file_path):
     except Exception as e:
         print("An error occurred:", str(e))
     df_null.to_excel('author_filtered_data.xlsx')
-    os.system(f'start excel author_filtered_data.xlsx')
-
+    def check_author_id(file_path):
+        df = pd.read_excel(file_path)
+        return all(df['author_id'] != ' ')
     while True:
-        time.sleep(1)
-        excel_running = False
-        for process in psutil.process_iter(attrs=['pid', 'name']):
-            if "EXCEL.EXE" in process.info['name']:
-                excel_running = True
+        os.system(f'start excel author_filtered_data.xlsx')
+        while True:
+            time.sleep(1)
+            excel_running = False
+            for process in psutil.process_iter(attrs=['pid', 'name']):
+                if "EXCEL.EXE" in process.info['name']:
+                    excel_running = True
+                    break
+            if not excel_running:
                 break
-        if not excel_running:
+        if check_author_id('author_filtered_data.xlsx'):
             break
+        else:
+            print("Some rows have empty 'org_id'. Rerunning the code.")
 
     print("Excel file has been closed. Now, running additional code.")
 
@@ -87,5 +94,5 @@ def update_author_id(excel_file_path):
     df.to_excel('authors_organisations.xlsx')
 
 if __name__ == "__main__":
-    update_author_id('authors_organisations.xlsx')
+    update_author_id('../authors_organisations.xlsx')
 
