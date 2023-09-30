@@ -24,7 +24,7 @@ def update_author_id(excel_file_path):
         df_database = pd.read_sql_query(query, engine)
         author_id_list = df_database['author_id'].tolist()
         df = pd.read_excel(excel_file_path, index_col=0)
-        df_null = pd.read_excel('../author_filtered_data.xlsx', index_col=0)
+        df_null = pd.read_excel('author_filtered_data.xlsx', index_col=0)
         df_null['generated_ids'] = df_null.apply(lambda row: generate_unique_id(author_id_list), axis=1)
         df['author_id'] = df['author_id'].astype(str)
         unique_author_names = (df_null['author_fullname'])
@@ -34,7 +34,6 @@ def update_author_id(excel_file_path):
 
         if len(filtered_rows) > 0:
             filtered_rows = filtered_rows.drop_duplicates(subset=['author_fullname'], keep='last')
-
             author_name_id_dict = dict(zip(filtered_rows['author_fullname'], filtered_rows['author_id']))
 
             def compute_possible_id(row):
@@ -59,10 +58,11 @@ def update_author_id(excel_file_path):
                 df_null['possible_id_from_db'] = df_null.apply(compute_possible_id, axis=1)
     except Exception as e:
         print("An error occurred:", str(e))
+    df_null['enter_id'] = ''
     df_null.to_excel('author_filtered_data.xlsx')
     def check_author_id(file_path):
         df = pd.read_excel(file_path)
-        return all(df['author_id'] != ' ')
+        return all(df['enter_id'] != ' ')
     while True:
         os.system(f'start excel author_filtered_data.xlsx')
         while True:
@@ -82,17 +82,16 @@ def update_author_id(excel_file_path):
     print("Excel file has been closed. Now, running additional code.")
 
     def update_author_id(row):
-        if row['author_id'] == ' ' and row['author_fullname'] in df_null['author_fullname'].values:
-            matching_row = df_null[df_null['author_fullname'] == row['author_fullname']]
-            return matching_row['generated_ids'].values[0]
+        if row['author_id'] == ' ' and row['author_fullname'] in df_null2['author_fullname'].values:
+            matching_row = df_null2[df_null2['author_fullname'] == row['author_fullname']]
+            return matching_row['enter_id'].values[0]
         else:
             return row['author_id']
 
-    # Apply the function to update org_id
+    df_null2 = pd.read_excel('author_filtered_data.xlsx', index_col=0)
     df['author_id'] = df.apply(update_author_id, axis=1)
-
     df.to_excel('authors_organisations.xlsx')
 
 if __name__ == "__main__":
-    update_author_id('../authors_organisations.xlsx')
+    update_author_id('authors_organisations.xlsx')
 

@@ -155,7 +155,6 @@ def parse_articles_to_excel(xml_filename):
                                             count_author_org.append(counter_dict[pair])
                                     elif author_id == " " and org_id != " ":
                                         key = (author_name + ' ' + author_initials, org_id)
-                                        # Check if the key is not in the set of unique combinations
                                         if key not in unique_combinations:
                                          counter_all += 1
                                          counter += 1
@@ -177,7 +176,6 @@ def parse_articles_to_excel(xml_filename):
                                             count_author_org.append(counter_dict_fornull_author[key])
                                     elif author_id != " " and org_id == " ":
                                         key = (author_id, org_name)
-                                        # Check if the key is not in the set of unique combinations
                                         if key not in unique_combinations:
                                          counter_all += 1
                                          counter += 1
@@ -355,7 +353,7 @@ def parse_articles_to_excel(xml_filename):
     org_df = pd.DataFrame(org_filtered_data)
 
     # Define Excel writer for author_filtered_data
-    author_writer = pd.ExcelWriter('../author_filtered_data.xlsx', engine='xlsxwriter')
+    author_writer = pd.ExcelWriter('author_filtered_data.xlsx', engine='xlsxwriter')
     author_df.to_excel(author_writer, sheet_name='Author Filtered Data', index=False)
 
 
@@ -369,7 +367,7 @@ def parse_articles_to_excel(xml_filename):
 
     # Save the Excel file for org_filtered_data 
     org_writer._save()
-    find_similar_fullnames('../author_filtered_data.xlsx')
+    # find_similar_fullnames('author_filtered_data.xlsx')
 
 
 if __name__ == "__main__":

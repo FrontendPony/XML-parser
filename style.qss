@@ -131,7 +131,7 @@
 		color:white;
 		background-color:#0a7e8c;
 		font-weight: bold;
-		font-size: 14pt;
+		font-size: 12pt;
 		border-radius: 25px;
 	}
 /*= END

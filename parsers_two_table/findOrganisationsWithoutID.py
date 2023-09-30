@@ -58,10 +58,11 @@ def update_org_id(excel_file_path):
                 df_null['possible_id_from_db'] = df_null.apply(compute_possible_id, axis=1)
     except Exception as e:
         print("An error occurred:", str(e))
+    df_null['enter_id'] = ''
     df_null.to_excel('org_filtered_data.xlsx')
     def check_author_id(file_path):
         df = pd.read_excel(file_path)
-        return all(df['org_id'] != ' ')
+        return all(df['enter_id'] != ' ')
     while True:
         os.system(f'start excel org_filtered_data.xlsx')
         while True:
@@ -79,10 +80,11 @@ def update_org_id(excel_file_path):
             print("Some rows have empty 'org_id'. Rerunning the code.")
 
     print("Excel file has been closed. Now, running additional code.")
+    df_null = pd.read_excel('org_filtered_data.xlsx', index_col=0)
     def update_org_id(row):
         if row['org_id'] == ' ' and row['org_name'] in df_null['org_name'].values:
             matching_row = df_null[df_null['org_name'] == row['org_name']]
-            return matching_row['generated_ids'].values[0]
+            return matching_row['enter_id'].values[0]
         else:
             return row['org_id']
 

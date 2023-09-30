@@ -188,6 +188,9 @@ class Ui_MainWindow(object):
         self.tableWidget.setGeometry(QtCore.QRect(10, 40, 951, 611))
         self.tableWidget.setRowCount(100)
         self.tableWidget.setColumnCount(100)
+        column_names = ["item_id", "author_name", "linkurl", "genre", "type", "journal_title", "publisher",
+                        "title_article"]
+        self.tableWidget.setHorizontalHeaderLabels(column_names)
         self.tableWidget.setObjectName("tableWidget")
         self.textEdit = QtWidgets.QTextEdit(parent=self.page)
         self.textEdit.setGeometry(QtCore.QRect(90, 0, 191, 31))
@@ -295,7 +298,7 @@ class Ui_MainWindow(object):
         self.tableWidget_article_2.setObjectName("tableWidget_article_2")
         self.changeDatainDatabaseButton_2 = QtWidgets.QPushButton(parent=self.widget1)
         self.changeDatainDatabaseButton_2.setGeometry(QtCore.QRect(310, 770, 341, 51))
-        self.changeDatainDatabaseButton_2.clicked.connect(lambda: self.readDataFromTableWidgetAndPushToSQL(self.tableWidget_article_2))
+        #self.changeDatainDatabaseButton_2.clicked.connect(lambda: self.readDataFromTableWidgetAndPushToSQL(self.tableWidget_article_2))
         self.changeDatainDatabaseButton_2.setObjectName("changeDatainDatabaseButton_2")
         self.stackedWidget.addWidget(self.page_2)
         self.page_7 = QtWidgets.QWidget()
@@ -303,7 +306,7 @@ class Ui_MainWindow(object):
         self.tableWidget_add_row = QtWidgets.QTableWidget(parent=self.page_7)
         self.tableWidget_add_row.setGeometry(QtCore.QRect(30, 40, 911, 71))
         self.tableWidget_add_row.setRowCount(1)
-        self.tableWidget_add_row.setColumnCount(100)
+        self.tableWidget_add_row.setColumnCount(27)
         self.tableWidget_add_row.setHorizontalHeaderLabels(column_names_article)
         self.tableWidget_add_row.setObjectName("tableWidget_add_row")
         self.add_one_row_button = QtWidgets.QPushButton(parent=self.page_7)
@@ -354,9 +357,9 @@ class Ui_MainWindow(object):
         self.widget_2.setGeometry(QtCore.QRect(10, 0, 971, 831))
         self.widget_2.setObjectName("widget_2")
         self.pushButton = QtWidgets.QPushButton(parent=self.widget_2)
-        self.pushButton.setGeometry(QtCore.QRect(300, 20, 351, 101))
+        self.pushButton.setGeometry(QtCore.QRect(570, 10, 301, 71))
         self.pushButton.setIcon(icon2)
-        self.pushButton.setIconSize(QtCore.QSize(90, 90))
+        self.pushButton.setIconSize(QtCore.QSize(50, 50))
         self.pushButton.setObjectName("pushButton")
         self.Primary_3 = QtWidgets.QPushButton(parent=self.widget_2)
         self.Primary_3.setGeometry(QtCore.QRect(360, 50, 161, 31))
@@ -602,7 +605,7 @@ class Ui_MainWindow(object):
         self.articleDB_button_iconwidget.setIconSize(QtCore.QSize(20, 20))
         self.articleDB_button_iconwidget.setCheckable(True)
         self.articleDB_button_iconwidget.setAutoExclusive(True)
-        self.articleDB_button_iconwidget.clicked.connect(lambda: self.dataLoadFromDB(self.tableWidget_article_2, 'SELECT * FROM whole_table'))
+        self.articleDB_button_iconwidget.clicked.connect(lambda: self.dataLoadFromDB(self.tableWidget_article_2, 'SELECT * FROM article'))
         self.articleDB_button_iconwidget.setObjectName("articleDB_button_iconwidget")
         self.verticalLayout.addWidget(self.articleDB_button_iconwidget)
         self.addingdatatoBD_button_iconwidget = QtWidgets.QPushButton(parent=self.widget_onlyicons)
@@ -702,7 +705,7 @@ class Ui_MainWindow(object):
         self.articleDB_button.setIcon(icon4)
         self.articleDB_button.setCheckable(True)
         self.articleDB_button.setAutoExclusive(True)
-        self.articleDB_button.clicked.connect(lambda: self.dataLoadFromDB(self.tableWidget_article_2, 'SELECT * FROM whole_table'))
+        self.articleDB_button.clicked.connect(lambda: self.dataLoadFromDB(self.tableWidget_article_2, 'SELECT * FROM article'))
         self.articleDB_button.setObjectName("articleDB_button")
         self.verticalLayout_2.addWidget(self.articleDB_button)
         self.addingdatatoBD_button = QtWidgets.QPushButton(parent=self.widget_expanded)
@@ -830,7 +833,7 @@ class Ui_MainWindow(object):
     def getNumberofRows(self):
         query = '''
         SELECT COUNT(*)
-        FROM whole_table
+        FROM article
         '''
         conn = psycopg2.connect(database=database_parametres['dbname'],
                                         user=database_parametres['user'],
@@ -884,7 +887,6 @@ class Ui_MainWindow(object):
         data_from_function = data
         column_names = self.getColumnNames()
         df = pd.DataFrame(data_from_function, columns=column_names)
-        print(df)
         self.insertNewRowInTable(df)
 
 if __name__ == "__main__":

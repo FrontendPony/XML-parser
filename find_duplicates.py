@@ -1,21 +1,26 @@
 import pandas as pd
 from delete_counter_in_article import delete_rows_in_excel
 def deduplicate_excel(excel_file):
-    df = pd.read_excel(excel_file)
-    grouped = df.groupby(['author_id', 'org_id'])
-    deleted_counters = []
-    rows_to_delete = []
+    try:
+        df = pd.read_excel(excel_file)
+        df = df.drop("Unnamed: 0", axis=1)
+        print(df.columns)
+        grouped = df.groupby(['author_id', 'org_id'])
+        rows_to_delete = []
 
-    for _, group in grouped:
-        if len(group) > 1:
-            deleted_counters.extend(group['counter'].iloc[1:].tolist())
-            rows_to_delete.extend(group.index[1:])
-    print(rows_to_delete)
-    result_df = df.drop(rows_to_delete)
-    result_df.to_excel(excel_file, index=False)
-    delete_rows_in_excel('article.xlsx', rows_to_delete)
+        for _, group in grouped:
+            if len(group) > 1:
+                print(group)
+                rows_to_delete.extend(group.loc[group['counter'] != group['counter'].min(), 'counter'])
+        print(rows_to_delete)
+        df = df[~df['counter'].isin(rows_to_delete)]
+        df.to_excel(excel_file, index=False)
+        delete_rows_in_excel('article.xlsx', rows_to_delete)
+
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
 
 
 if __name__ == "__main__":
-    deduplicate_excel('authors_organisations.xlsx')
+    deduplicate_excel('merged_ao.xlsx')
 

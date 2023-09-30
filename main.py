@@ -100,7 +100,6 @@ class MainWindow(QMainWindow):
         self.dialog_instance.exec()
 
     # def deleteRowOnChoice(self, data_2):
-    #     print(123)
     #     item_id = data_2[0][0]
     #     author_id = data_2[0][1]
     #     author_name = data_2[0][2]
@@ -111,7 +110,6 @@ class MainWindow(QMainWindow):
     #                             host=database_parametres['host'],
     #                             port=database_parametres['port'])
     #     cur = conn.cursor()
-    #     print(123)
     #     try:
     #         delete_query = """
     #                DELETE FROM article_author
@@ -149,7 +147,7 @@ class MainWindow(QMainWindow):
 			JOIN 
 			authors_organisations USING(counter)
 			GROUP BY linkurl)
-SELECT * FROM (SELECT DISTINCT
+            SELECT * FROM (SELECT DISTINCT
 			article.linkurl,
             article.doi,
             article.year,
@@ -173,9 +171,9 @@ SELECT * FROM (SELECT DISTINCT
 		JOIN
 			cte USING(linkurl)
 
-		window affilations_cnt as (partition by linkurl, author_id)
-		ORDER BY doi) AS foo
+		window affilations_cnt as (partition by linkurl, author_id)) AS foo
 		WHERE foo.org_id = 570
+		ORDER BY doi
             """
             cursor.execute(sql_query)
             result = cursor.fetchall()
@@ -186,6 +184,7 @@ SELECT * FROM (SELECT DISTINCT
 
             excel_template_path = "../article_data_base/shablon_kbpr.xlsx"
             df_template = pd.read_excel(excel_template_path)
+            df_template['URL'] = df['linkurl']
             df_template['Идентификатор DOI *'] = df['doi']
             df_template['Количество авторов *'] = df['author_count']
             df_template['Фамилия *'] = df['author_name']
@@ -204,7 +203,7 @@ SELECT * FROM (SELECT DISTINCT
             df_template['Идентификатор РИНЦ'] = df['risc']
             df_template['Идентификатор ISSN'] = df['issn']
             df_template['Идентификатор EDN'] = df['edn']
-            df_template['URL'] = df['linkurl']
+
 
             timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
             output_path = f"shablon_kbpr_{timestamp}.xlsx"
@@ -212,7 +211,6 @@ SELECT * FROM (SELECT DISTINCT
             QMessageBox.information(self, "Экспорт", "Excel файл по шаблону кбпр создан!")
 
         except Exception as e:
-            print(e)
             QMessageBox.critical(self, "Ошибка", f"Произошла ошибка: {str(e)}")
         finally:
             try:
@@ -237,65 +235,43 @@ SELECT * FROM (SELECT DISTINCT
                 cursor = connection.cursor()
 
                 sql_query = """
-                SELECT *
-FROM (
-     SELECT DISTINCT
-			whole_table.linkurl,
-            whole_table.doi,
-            whole_table.year,
-            whole_table.title_article,
-            whole_table.publisher,
-           	whole_table.type,
-            whole_table.risc,
-            whole_table.issn,
-            whole_table.edn,
-            whole_table.author_id,
-            whole_table.org_id,
-            whole_table.org_name,
-			whole_table.item_id,
-			CASE
-  			WHEN authors_splitted.author_name ~ '[A-Za-z]' AND authors_reference_with_id.birth_year IS NOT NULL  THEN authors_reference_with_id.lastname
-  			ELSE authors_splitted.author_name
-			END AS last_name,
-            CASE
-  			WHEN (authors_splitted.first_name LIKE '%.%' AND authors_reference_with_id.birth_year IS NOT NULL) OR (authors_splitted.first_name ~ '[A-Za-z]' AND authors_reference_with_id.birth_year IS NOT NULL) OR authors_splitted.first_name IS NULL 
-			THEN authors_reference_with_id.first_name
-  			ELSE authors_splitted.first_name
-			END AS first_name,
-			CASE
-  			WHEN (authors_splitted.patronymic LIKE '%.%' AND authors_reference_with_id.birth_year IS NOT NULL) OR authors_splitted.patronymic IS NULL OR (authors_splitted.patronymic ~ '[A-Za-z]'  AND authors_reference_with_id.birth_year IS NOT NULL)
-			THEN authors_reference_with_id.patronymic
-  			ELSE authors_splitted.patronymic
-			END AS patronymic,
-			authors_reference_with_id.position,
-			authors_reference_with_id.academic_degree,
-			authors_reference_with_id.employment_relationship,
-			authors_reference_with_id.birth_year,
-			nested_aff.affilations_count,
-			nested_auth.author_count
+             with cte as (SELECT 
+			linkurl, count(DISTINCT author_id) as author_count
+			FROM
+            article 
+			JOIN 
+			authors_organisations USING(counter)
+			GROUP BY linkurl)
+			SELECT * FROM (
+            SELECT * FROM (SELECT DISTINCT
+			article.linkurl,
+            article.doi,
+            article.year,
+            article.title_article,
+            article.publisher,
+           	article.type,
+            article.risc,
+            article.issn,
+            article.edn,
+            authors_organisations.author_id,
+			authors_organisations.author_name,
+			authors_organisations.author_initials,
+            authors_organisations.org_id,
+            authors_organisations.org_name,
+			cte.author_count,
+			COUNT(author_id) over affilations_cnt as affilations_count
         FROM
-            whole_table 
+            article 
 		JOIN 
-			authors_splitted ON authors_splitted.item_id = whole_table.item_id AND authors_splitted.author_name = whole_table.author_name AND authors_splitted.author_initials = whole_table.author_initials
-		LEFT JOIN 
-			authors_reference_with_id  ON CAST(authors_reference_with_id.author_id AS text) = whole_table.author_id
-		 JOIN
-            (
-                SELECT item_id, COUNT(item_id) AS author_count
-                FROM author_count_helper
-                GROUP BY item_id
-            ) AS nested_auth ON whole_table.item_id = nested_auth.item_id
+			authors_organisations USING(counter)
 		JOIN
-            (
-                SELECT item_id,author_name,author_initials, COUNT(org_name) AS affilations_count
-                FROM whole_table
-                GROUP BY item_id,author_name,author_initials
-            ) AS nested_aff ON whole_table.item_id = nested_aff.item_id AND nested_aff.author_name = whole_table.author_name AND nested_aff.author_initials = whole_table.author_initials
-		WHERE whole_table.org_id = '570'
-		ORDER BY doi
-        ) AS subquery
-        WHERE {0}
-                """.format(where[0])
+			cte USING(linkurl)
+
+		window affilations_cnt as (partition by linkurl, author_id)) AS foo
+		WHERE foo.org_id = 570
+		ORDER BY doi) as subquery
+		WHERE {0}
+            """.format(where[0])
 
                 cursor.execute(sql_query)
                 result = cursor.fetchall()
@@ -306,15 +282,16 @@ FROM (
 
                 excel_template_path = "../article_data_base/shablon_kbpr.xlsx"
                 df_template = pd.read_excel(excel_template_path)
+                df_template['URL'] = df['linkurl']
                 df_template['Идентификатор DOI *'] = df['doi']
                 df_template['Количество авторов *'] = df['author_count']
-                df_template['Фамилия *'] = df['last_name']
-                df_template['Имя *'] = df['first_name']
-                df_template['Отчество'] = df['patronymic']
-                df_template['Должность *'] = df['position']
-                df_template['Ученая степень *'] = df['academic_degree']
-                df_template['Тип трудовых отношений *'] = df['employment_relationship']
-                df_template['Год рождения *'] = df['birth_year']
+                df_template['Фамилия *'] = df['author_name']
+                df_template['Имя *'] = df['author_initials']
+                # df_template['Отчество'] = df['patronymic']
+                # df_template['Должность *'] = df['position']
+                # df_template['Ученая степень *'] = df['academic_degree']
+                # df_template['Тип трудовых отношений *'] = df['employment_relationship']
+                # df_template['Год рождения *'] = df['birth_year']
                 df_template['Количество аффиляций *'] = df['affilations_count']
                 df_template['Аффиляция *'] = df['org_name']
                 df_template['Дата публикации *'] = pd.to_datetime(df['year'], format='%Y').dt.strftime('01/01/%Y')
@@ -324,7 +301,6 @@ FROM (
                 df_template['Идентификатор РИНЦ'] = df['risc']
                 df_template['Идентификатор ISSN'] = df['issn']
                 df_template['Идентификатор EDN'] = df['edn']
-                df_template['URL'] = df['linkurl']
 
                 timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
                 output_path = f"shablon_kbpr_{timestamp}.xlsx"
@@ -362,40 +338,7 @@ FROM (
         cur.close()
         conn.close()
 
-    deleteRowsFromWholeTableWithENRUSproblem_query = """
-            DELETE FROM 
-            whole_table
-            WHERE (item_id,author_name,author_initials,author_id) IN
-            (SELECT item_id,author_name,author_initials,author_id FROM affilations 
-            WHERE item_id IN (
-            SELECT item_id FROM affilations
-            WHERE author_id != ' ' 
-            GROUP BY item_id,author_id
-            HAVING count(author_name) > 1
-            ORDER BY item_id) AND
-            author_id IN (
-            SELECT author_id FROM affilations
-            WHERE author_id != ' ' 
-            GROUP BY item_id,author_id
-            HAVING count(author_name) > 1)
-            AND author_name  ~ '[A-Za-z]')
-            """
 
-    getOnlyDistinctRowsFromAATable_query = """
-            CREATE TABLE article_author_distinct AS
-            SELECT DISTINCT * FROM article_author;
-            DROP TABLE article_author;
-            ALTER TABLE article_author_distinct 
-            RENAME TO article_author;
-            """
-
-    createAuthorCountTable_query = """
-            DROP TABLE IF EXISTS author_count_helper;
-            CREATE TABLE  author_count_helper AS
-            SELECT item_id,author_name,author_initials
-            FROM whole_table
-            GROUP BY item_id,author_name,author_initials
-            """
 
     splitInitials_query = """
         DROP TABLE IF EXISTS authors_splitted;
@@ -474,6 +417,8 @@ FROM (
                 'corerisc']
             data_frame = pd.read_excel(xlsx_file_path, index_col=index_col)
             if table_name == 'authors_organisations':
+                if "Unnamed: 0" in data_frame.columns:
+                    data_frame = data_frame.drop("Unnamed: 0", axis=1)
                 data_frame.drop("author_fullname", axis=1, inplace=True)
             if table_name == 'article':
                 for column in float_columns:
@@ -484,7 +429,7 @@ FROM (
                 columns_to_compare = ['item_id', 'linkurl', 'genre', 'type', 'issn', 'eissn', 'publisher', 'vak', 'rcsi', 'wos', 'scopus', 'quartile', 'year', 'number', 'contnumber', 'volume', 'language', 'edn', 'grnti', 'risc', 'corerisc', 'doi', 'counter']
                 new_row = pd.DataFrame({'item_id': ''}, index=[0])
                 data_frame = pd.concat([data_frame, new_row])
-                merged_data = pd.concat([data_frame, existing_data]).drop_duplicates(keep=False)
+                merged_data = pd.concat([data_frame, existing_data]).drop_duplicates()
                 merged_data.to_excel('merged.xlsx')
                 update_excel_file('merged.xlsx')
                 merged_data = pd.read_excel('merged.xlsx', index_col=0)
@@ -512,12 +457,18 @@ FROM (
                                         'publisher', 'vak', 'rcsi', 'wos', 'scopus', 'quartile', 'year', 'number',
                                         'contnumber', 'volume', 'page_begin', 'page_end', 'language',
                                         'doi', 'edn', 'grnti', 'risc', 'corerisc', 'counter'])
-                merged_data = merged_data.drop("Unnamed: 0", axis=1)
+                if "Unnamed: 0" in merged_data.columns:
+                    merged_data = merged_data.drop("Unnamed: 0", axis=1)
                 merged_data.to_excel('merged.xlsx')
-                # merged_data.to_sql(table_name, engine, if_exists='replace', index=False)
+                merged_data.to_sql(table_name, engine, if_exists='replace', index=False)
             elif table_name == 'authors_organisations':
-                merged_data = pd.concat([data_frame, existing_data]).drop_duplicates(keep=False)
-                # merged_data.to_sql(table_name, engine, if_exists='replace', index=False)
+                merged_data = pd.concat([data_frame, existing_data])
+                merged_data = merged_data.drop_duplicates()
+                merged_data.to_excel('merged_ao.xlsx')
+                deduplicate_excel('merged_ao.xlsx')
+                merged_data_filtered = pd.read_excel('merged_ao.xlsx')
+                print(merged_data_filtered)
+                merged_data_filtered.to_sql(table_name, engine, if_exists='replace', index=False)
         except Exception as e:
             print(f"An error occurred: {e}")
         finally:
@@ -526,24 +477,22 @@ FROM (
         self.ui.progressBar.setValue(0)
         fname = QFileDialog.getOpenFileName(self, "Open XML file", "", "All Files (*);; XML Files (*.xml)")
         if fname[0]:
-            # parse_articles_to_excel(fname[0])
-            # self.ui.progressBar.setValue(10)
-            # self.ui.progressBar.setValue(20)
-            # self.ui.progressBar.setValue(30)
-            # update_org_id('authors_organisations.xlsx')
-            # update_author_id('authors_organisations.xlsx')
-            # deduplicate_excel('authors_organisations.xlsx')
-            # self.ui.progressBar.setValue(40)
-            # self.ui.progressBar.setValue(50)
-            self.import_xlsx_to_postgresql2(database_parametres, 'authors_organisations.xlsx', 'authors_organisations', None)
+            parse_articles_to_excel(fname[0])
+            self.ui.progressBar.setValue(10)
+            self.ui.progressBar.setValue(20)
+            self.ui.progressBar.setValue(30)
+            update_org_id('authors_organisations.xlsx')
+            update_author_id('authors_organisations.xlsx')
+            deduplicate_excel('authors_organisations.xlsx')
+            self.ui.progressBar.setValue(40)
+            self.ui.progressBar.setValue(50)
+            self.import_xlsx_to_postgresql2(database_parametres, 'authors_organisations.xlsx', 'authors_organisations', False)
+            self.ui.progressBar.setValue(60)
+            self.ui.progressBar.setValue(70)
+            self.ui.progressBar.setValue(80)
+            self.ui.progressBar.setValue(90)
             self.import_xlsx_to_postgresql2(database_parametres, 'article.xlsx', 'article', None)
-            # self.ui.progressBar.setValue(60)
-            # self.execute_query_with_params(self.createAuthorCountTable_query)
-            # self.ui.progressBar.setValue(70)
-            # self.execute_query_with_params(self.splitInitials_query)
-            # self.ui.progressBar.setValue(80)
-            # self.ui.progressBar.setValue(90)
-            # self.ui.progressBar.setValue(100)
+            self.ui.progressBar.setValue(100)
             QMessageBox.information(self, "Успешный импорт", "Данные были перенесены в Базу Данных!")
         else:
             print("Выбор файла отменен. Файл не был перемещен.")
@@ -551,7 +500,8 @@ FROM (
     def searchButtonDBConnector(self, year, lastname):
         query = """
                         SELECT item_id, author_name, linkurl, genre, type, journal_title,publisher, title_article
-                        FROM whole_table 
+                        FROM article
+                        JOIN authors_organisations USING(counter)
                         WHERE year = '{year}' AND author_name = '{lastname}'
                         """
 
@@ -693,13 +643,13 @@ FROM (
             if selected_year_from == 'None' and selected_year_to == 'None' and text == '':
              pass
             elif (selected_year_from != 'None' and selected_year_to == 'None' and text == ''):
-             specify_where_basic.append(f" whole_table.year = {selected_year_from}")
+             specify_where_basic.append(f" article.year = {selected_year_from}")
             elif (selected_year_from != 'None' and selected_year_to != 'None' and text == ''):
-             specify_where_basic.append(f" whole_table.year BETWEEN {selected_year_from} AND {selected_year_to}")
+             specify_where_basic.append(f" article.year BETWEEN {selected_year_from} AND {selected_year_to}")
             elif (selected_year_from != 'None' and selected_year_to != 'None' and text != ''):
-             specify_where_advanced.append(f" subquery.year BETWEEN {selected_year_from} AND {selected_year_to} AND last_name = '{text}'")
+             specify_where_advanced.append(f" subquery.year BETWEEN {selected_year_from} AND {selected_year_to} AND subquery.author_name = '{text}'")
             elif (selected_year_from != 'None' and selected_year_to == 'None' and text != ''):
-             specify_where_advanced.append(f" subquery.year = {selected_year_from} AND last_name = '{text}'")
+             specify_where_advanced.append(f" subquery.year = {selected_year_from} AND subquery.author_name = '{text}'")
         if len(specify_where_basic) > 0 or (len(specify_where_basic) == 0 and len(specify_where_advanced) == 0 ):
             print(specify_where_basic)
             self.process_data(specify_where_basic)
@@ -724,7 +674,7 @@ FROM (
     def insertNewRowInWholeTable(self, row_1):
         try:
             query = """
-                        INSERT INTO whole_table VALUES
+                        INSERT INTO article VALUES
                         ({});
                         """
             query = query.format(row_1[0])
