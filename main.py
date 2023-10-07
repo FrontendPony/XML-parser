@@ -182,7 +182,7 @@ class MainWindow(QMainWindow):
             cursor.close()
             connection.close()
 
-            excel_template_path = "../article_data_base/shablon_kbpr.xlsx"
+            excel_template_path = "shablon_kbpr.xlsx"
             df_template = pd.read_excel(excel_template_path)
             df_template['URL'] = df['linkurl']
             df_template['Идентификатор DOI *'] = df['doi']
@@ -280,7 +280,7 @@ class MainWindow(QMainWindow):
                 cursor.close()
                 connection.close()
 
-                excel_template_path = "../article_data_base/shablon_kbpr.xlsx"
+                excel_template_path = "shablon_kbpr.xlsx"
                 df_template = pd.read_excel(excel_template_path)
                 df_template['URL'] = df['linkurl']
                 df_template['Идентификатор DOI *'] = df['doi']
@@ -423,13 +423,14 @@ class MainWindow(QMainWindow):
             if table_name == 'article':
                 for column in float_columns:
                     data_frame[column] = data_frame[column].apply(lambda x: replace_float_with_null(x))
-            existing_data_query = f"SELECT DISTINCT * FROM {table_name}"
+            existing_data_query = f"SELECT * FROM {table_name}"
             existing_data = pd.read_sql(existing_data_query, engine)
             if table_name == 'article':
                 columns_to_compare = ['item_id', 'linkurl', 'genre', 'type', 'issn', 'eissn', 'publisher', 'vak', 'rcsi', 'wos', 'scopus', 'quartile', 'year', 'number', 'contnumber', 'volume', 'language', 'edn', 'grnti', 'risc', 'corerisc', 'doi', 'counter']
                 new_row = pd.DataFrame({'item_id': ''}, index=[0])
                 data_frame = pd.concat([data_frame, new_row])
-                merged_data = pd.concat([data_frame, existing_data]).drop_duplicates()
+                merged_data = pd.concat([data_frame, existing_data])
+                merged_data = merged_data.drop_duplicates()
                 merged_data.to_excel('merged.xlsx')
                 update_excel_file('merged.xlsx')
                 merged_data = pd.read_excel('merged.xlsx', index_col=0)
@@ -460,7 +461,12 @@ class MainWindow(QMainWindow):
                 if "Unnamed: 0" in merged_data.columns:
                     merged_data = merged_data.drop("Unnamed: 0", axis=1)
                 merged_data.to_excel('merged.xlsx')
+                merged_data = pd.read_excel('merged.xlsx', index_col=0)
                 merged_data.to_sql(table_name, engine, if_exists='replace', index=False)
+                fix_query = f"SELECT * FROM {table_name}"
+                data_test = pd.read_sql(fix_query, engine)
+                data_test = data_test.drop_duplicates()
+                data_test.to_sql(table_name, engine, if_exists='replace', index=False)
             elif table_name == 'authors_organisations':
                 merged_data = pd.concat([data_frame, existing_data])
                 merged_data = merged_data.drop_duplicates()

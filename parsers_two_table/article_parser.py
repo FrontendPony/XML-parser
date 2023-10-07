@@ -94,7 +94,7 @@ def parse_articles_to_excel(xml_filename):
 
     article = pd.DataFrame(data=fields)
     article = article.explode('counter')
-    article.to_excel("article.xlsx", index=False)
+    article.to_excel("article2.xlsx", index=False)
 
     fd.close()
 

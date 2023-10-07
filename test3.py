@@ -1,7 +1,7 @@
 import pandas as pd
 
 # Read the Excel file into a DataFrame
-excel_file = 'parsers_two_table/authors_organisations.xlsx'
+excel_file = 'authors_organisations.xlsx'
 df = pd.read_excel(excel_file)
 
 # Group rows by 'author_id' and 'org_id'

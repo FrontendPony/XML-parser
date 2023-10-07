@@ -17,7 +17,7 @@ def apply_fill_colors(input_file_path):
     author_counts = {}
 
     for row in sheet.iter_rows(min_row=2):
-        formatted_author_name = row[2].value
+        formatted_author_name = row[-1].value
 
         if formatted_author_name in author_counts:
             author_counts[formatted_author_name] += 1
@@ -32,14 +32,14 @@ def apply_fill_colors(input_file_path):
                 author_colors[formatted_author_name] = fill_color
 
     for row in sheet.iter_rows(min_row=2):
-        formatted_author_name = row[2].value
+        formatted_author_name = row[-1].value
         fill_color = author_colors.get(formatted_author_name)
 
         if fill_color:
             for cell in row:
                 cell.fill = fill_color
-    sheet.delete_cols(3)
-
+    last_column_index = sheet.max_column
+    # sheet.delete_cols(last_column_index + 1)
     workbook.save(input_file_path)
     workbook.close()
 

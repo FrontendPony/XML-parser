@@ -18,8 +18,21 @@ def find_similar_fullnames(file_path):
             author_fullnames = df['author_fullname'].tolist()
             formatted_data = [format_name(name) for name in author_fullnames]
             df['formatted_author_name'] = formatted_data
-            df.to_excel(file_path, index=False)
-            apply_fill_colors('../author_filtered_data.xlsx')
+            grouped = df.groupby('formatted_author_name')
+            # Create a list to store DataFrames for each group
+            group_dfs = []
+
+            # Iterate through the groups
+            for name, group in grouped:
+                group_dfs.append(group)
+
+            # Concatenate all group DataFrames into one DataFrame
+            result_df = pd.concat(group_dfs)
+            print(result_df)
+
+            # Save the combined DataFrame to a single Excel file
+            result_df.to_excel(file_path, index=False)
+            apply_fill_colors(file_path)
     except Exception as e:
         print(f"Error processing the Excel file: {str(e)}")
 

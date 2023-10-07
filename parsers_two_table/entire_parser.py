@@ -70,6 +70,7 @@ def parse_articles_to_excel(xml_filename):
         # item
         fields['item_id'].append(tag['id'])
         fields['linkurl'].append(tag.find('linkurl').text if tag.find('linkurl') is not None else "")
+        linkurl = tag.find('linkurl').text if tag.find('linkurl') is not None else ""
         fields['genre'].append(tag.find('genre').text if tag.find('genre') is not None else "")
         fields['type'].append(tag.find('type').text if tag.find('type') is not None else "")
 
@@ -131,7 +132,6 @@ def parse_articles_to_excel(xml_filename):
                         next_item = langArray[i + 1]
                         langArray = langArray[1:]
                         if current_item[0] != next_item[0] and current_item[1] == next_item[1]:
-                            print(f"Condition met for elements {current_item} and {next_item}")
                             break
                         else:
                             second_loop_executed = True
@@ -164,7 +164,8 @@ def parse_articles_to_excel(xml_filename):
                                              "author_name": author_name,
                                              "author_initials": author_initials,
                                              "org_id": org_id,
-                                             "org_name": org_name
+                                             "org_name": org_name,
+                                             "linkurl": linkurl
                                          }
                                          # Append the dictionary to the list
                                          array_of_dicts.append(data_dict)
@@ -185,7 +186,8 @@ def parse_articles_to_excel(xml_filename):
                                              "author_name": author_name,
                                              "author_initials": author_initials,
                                              "org_id": org_id,
-                                             "org_name": org_name
+                                             "org_name": org_name,
+                                             "linkurl": linkurl
                                          }
                                          # Append the dictionary to the list
                                          array_of_dicts.append(data_dict)
@@ -207,7 +209,8 @@ def parse_articles_to_excel(xml_filename):
                                              "author_name": author_name,
                                              "author_initials": author_initials,
                                              "org_id": org_id,
-                                             "org_name": org_name
+                                             "org_name": org_name,
+                                             "linkurl": linkurl
                                          }
                                          # Append the dictionary to the list
                                          array_of_dicts.append(data_dict)
@@ -251,7 +254,8 @@ def parse_articles_to_excel(xml_filename):
                                     "author_name": author_name,
                                     "author_initials": author_initials,
                                     "org_id": org_id,
-                                    "org_name": org_name
+                                    "org_name": org_name,
+                                    "linkurl": linkurl
                                 }
                                 # Append the dictionary to the list
                                 array_of_dicts.append(data_dict)
@@ -274,7 +278,8 @@ def parse_articles_to_excel(xml_filename):
                                     "author_name": author_name,
                                     "author_initials": author_initials,
                                     "org_id": org_id,
-                                    "org_name": org_name
+                                    "org_name": org_name,
+                                    "linkurl": linkurl
                                 }
                                 # Append the dictionary to the list
                                 array_of_dicts.append(data_dict)
@@ -297,7 +302,8 @@ def parse_articles_to_excel(xml_filename):
                                     "author_name": author_name,
                                     "author_initials": author_initials,
                                     "org_id": org_id,
-                                    "org_name": org_name
+                                    "org_name": org_name,
+                                    "linkurl": linkurl
                                 }
                                 # Append the dictionary to the list
                                 array_of_dicts.append(data_dict)
@@ -337,8 +343,10 @@ def parse_articles_to_excel(xml_filename):
         if author_id == " " and (author_name, author_initials) not in unique_author_pairs:
             unique_author_pairs.add((author_name, author_initials))
             author_filtered_data.append({
-                "author_id": data_dict["author_id"],
+                "author_name": data_dict["author_name"],
+                "author_initials": data_dict["author_initials"],
                 "author_fullname": data_dict["author_name"] + ' ' + data_dict["author_initials"],
+                "linkurl": data_dict["linkurl"]
             })
 
         # Check if org_id is None and the org_name is unique
@@ -367,7 +375,6 @@ def parse_articles_to_excel(xml_filename):
 
     # Save the Excel file for org_filtered_data 
     org_writer._save()
-    # find_similar_fullnames('author_filtered_data.xlsx')
 
 
 if __name__ == "__main__":
