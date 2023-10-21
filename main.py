@@ -1,4 +1,7 @@
 import sys
+
+import sqlalchemy
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QMainWindow, QApplication, QPushButton,QFileDialog,QMessageBox
 import pandas as pd
 from PyQt6 import QtWidgets, QtGui
@@ -32,12 +35,6 @@ class Dialog(QtWidgets.QDialog):
         self.ui_dialog.row_from_excel.clearContents()
         some_row_index = 0
         some_column_index = 0
-        for i in range(len(data_1)):
-            for j in range(26):
-                item = QtWidgets.QTableWidgetItem(str(data_1[i][j]))
-                if i == some_row_index and j == some_column_index:
-                    item.setBackground(QColor(255, 0, 0))
-                self.ui_dialog.row_from_database.setItem(i, j, item)
         for i in range(len(data_1)):
             for j in range(26):
                 item = QtWidgets.QTableWidgetItem(str(data_1[i][j]))
@@ -93,6 +90,20 @@ class MainWindow(QMainWindow):
         self.user_button.clicked.connect(lambda: self.authorsReferenceToSQL(database_parametres))
         self.add_one_row_button = self.findChild(QPushButton, "add_one_row_button")
         self.add_one_row_button.clicked.connect(self.addOneRowToDB)
+        self.full_search_button = self.findChild(QPushButton, "pushButton_3")
+        self.full_search_button .clicked.connect(self.search)
+
+        self.next_result_button = self.findChild(QPushButton, "pushButton_4")
+        self.next_result_button.clicked.connect(self.scroll_to_next_result)
+        self.next_result_button.setEnabled(False)
+
+        self.previous_result_button = self.findChild(QPushButton, "pushButton_6")
+        self.previous_result_button.clicked.connect(self.scroll_to_previous_result)
+        self.previous_result_button.setEnabled(False)
+
+        self.search_results = []
+        self.current_result_index = 0
+        self.signal_connected = True
 
     def showDialog(self, data_1, data_2, index_array_1, index_array_2):
         self.dialog_instance = Dialog(data_1, data_2, index_array_1, index_array_2)
@@ -128,7 +139,96 @@ class MainWindow(QMainWindow):
     #     finally:
     #         cur.close()
     #         conn.close()
+    def disconnect_signal(self):
+        self.ui.tableWidget_article_2.itemChanged.disconnect(self.ui.handleItemChanged)
+    def reconnect_signal(self):
+        self.ui.tableWidget_article_2.itemChanged.connect(self.ui.handleItemChanged)
+    def search(self):
+        try:
+            if self.signal_connected:
+                self.ui.tableWidget_article_2.itemChanged.disconnect(self.ui.handleItemChanged)
+                self.signal_connected = False
+            self.clear_highlighting()
+            search_text = self.ui.textEdit_22.toPlainText().strip()
+            self.clear_search_results()
+            for row in range(self.ui.tableWidget_article_2.rowCount()):
+                for column in range(self.ui.tableWidget_article_2.columnCount()):
+                    item = self.ui.tableWidget_article_2.item(row, column)
+                    if item and item.text() == search_text:
+                        self.search_results.append((row, column))
 
+            if self.search_results:
+                self.current_result_index = 0
+                self.highlight_current_result()
+                self.scroll_to_current_result()
+                self.next_result_button.setEnabled(len(self.search_results) > 1)
+                self.previous_result_button.setEnabled(len(self.search_results) > 1)
+            if not self.signal_connected:
+                self.ui.tableWidget_article_2.itemChanged.connect(self.ui.handleItemChanged)
+                self.signal_connected = True
+        except Exception as e:
+            print(f"An error occurred: {str(e)}")
+
+    def clear_search_results(self):
+        for row in range(self.ui.tableWidget_article_2.rowCount()):
+            self.ui.tableWidget_article_2.item(row, 0).setBackground(Qt.GlobalColor.transparent)
+        self.search_results = []
+        self.current_result_index = 0
+        self.next_result_button.setEnabled(False)
+        self.previous_result_button.setEnabled(False)
+
+
+    def scroll_to_current_result(self):
+        if self.search_results:
+            row, column = self.search_results[self.current_result_index]
+            item = self.ui.tableWidget_article_2.item(row, column)
+            if item:
+                self.ui.tableWidget_article_2.scrollToItem(item)
+
+
+    def highlight_current_result(self):
+
+        if self.search_results:
+            row, _ = self.search_results[self.current_result_index]
+            for column in range(self.ui.tableWidget_article_2.columnCount()):
+                self.ui.tableWidget_article_2.item(row, column).setBackground(QColor(238, 221, 102))
+
+    def scroll_to_next_result(self):
+        try:
+            if self.signal_connected:
+                self.ui.tableWidget_article_2.itemChanged.disconnect(self.ui.handleItemChanged)
+                self.signal_connected = False
+
+            if self.search_results:
+                self.current_result_index = (self.current_result_index + 1) % len(self.search_results)
+                self.clear_highlighting()
+                self.highlight_current_result()
+                self.scroll_to_current_result()
+            if not self.signal_connected:
+                self.ui.tableWidget_article_2.itemChanged.connect(self.ui.handleItemChanged)
+                self.signal_connected = True
+        except Exception as e:
+            # Handle the exception here
+            print(f"An error occurred: {e}")
+
+    def scroll_to_previous_result(self):
+        if self.signal_connected:
+            self.ui.tableWidget_article_2.itemChanged.disconnect(self.ui.handleItemChanged)
+            self.signal_connected = False
+        if self.search_results:
+            self.current_result_index = (self.current_result_index - 1) % len(self.search_results)
+            self.clear_highlighting()
+            self.highlight_current_result()
+            self.scroll_to_current_result()
+        if not self.signal_connected:
+            self.ui.tableWidget_article_2.itemChanged.connect(self.ui.handleItemChanged)
+            self.signal_connected = True
+
+
+    def clear_highlighting(self):
+        for row in range(self.ui.tableWidget_article_2.rowCount()):
+            for column in range(self.ui.tableWidget_article_2.columnCount()):
+                self.ui.tableWidget_article_2.item(row, column).setBackground(Qt.GlobalColor.transparent)
     def process_data(self, where):
         try:
             connection = psycopg2.connect(
@@ -144,10 +244,12 @@ class MainWindow(QMainWindow):
 			linkurl, count(DISTINCT author_id) as author_count
 			FROM
             article 
+			JOIN
+			article_authors_linkage USING(item_id)
 			JOIN 
 			authors_organisations USING(counter)
 			GROUP BY linkurl)
-            SELECT * FROM (SELECT DISTINCT
+            SELECT * FROM (SELECT 
 			article.linkurl,
             article.doi,
             article.year,
@@ -166,15 +268,18 @@ class MainWindow(QMainWindow):
 			COUNT(author_id) over affilations_cnt as affilations_count
         FROM
             article 
+		JOIN
+			article_authors_linkage USING(item_id)
 		JOIN 
 			authors_organisations USING(counter)
 		JOIN
 			cte USING(linkurl)
-
-		window affilations_cnt as (partition by linkurl, author_id)) AS foo
-		WHERE foo.org_id = 570
-		ORDER BY doi
+		window affilations_cnt as (partition by linkurl, author_id)) AS subquery
+		WHERE subquery.org_id = 570
             """
+            if where:
+                sql_query += f"AND {where[0]}"
+            sql_query += "ORDER BY doi"
             cursor.execute(sql_query)
             result = cursor.fetchall()
             columns = [desc[0] for desc in cursor.description]
@@ -239,11 +344,12 @@ class MainWindow(QMainWindow):
 			linkurl, count(DISTINCT author_id) as author_count
 			FROM
             article 
+			JOIN
+			article_authors_linkage USING(item_id)
 			JOIN 
 			authors_organisations USING(counter)
 			GROUP BY linkurl)
-			SELECT * FROM (
-            SELECT * FROM (SELECT DISTINCT
+            SELECT * FROM (SELECT 
 			article.linkurl,
             article.doi,
             article.year,
@@ -262,14 +368,13 @@ class MainWindow(QMainWindow):
 			COUNT(author_id) over affilations_cnt as affilations_count
         FROM
             article 
+		JOIN
+			article_authors_linkage USING(item_id)
 		JOIN 
 			authors_organisations USING(counter)
 		JOIN
 			cte USING(linkurl)
-
-		window affilations_cnt as (partition by linkurl, author_id)) AS foo
-		WHERE foo.org_id = 570
-		ORDER BY doi) as subquery
+		window affilations_cnt as (partition by linkurl, author_id)) AS subquery
 		WHERE {0}
             """.format(where[0])
 
@@ -426,7 +531,7 @@ class MainWindow(QMainWindow):
             existing_data_query = f"SELECT * FROM {table_name}"
             existing_data = pd.read_sql(existing_data_query, engine)
             if table_name == 'article':
-                columns_to_compare = ['item_id', 'linkurl', 'genre', 'type', 'issn', 'eissn', 'publisher', 'vak', 'rcsi', 'wos', 'scopus', 'quartile', 'year', 'number', 'contnumber', 'volume', 'language', 'edn', 'grnti', 'risc', 'corerisc', 'doi', 'counter']
+                columns_to_compare = ['item_id', 'linkurl', 'genre', 'type', 'issn', 'eissn', 'publisher', 'vak', 'rcsi', 'wos', 'scopus', 'quartile', 'year', 'number', 'contnumber', 'volume', 'language', 'edn', 'grnti', 'risc', 'corerisc', 'doi']
                 new_row = pd.DataFrame({'item_id': ''}, index=[0])
                 data_frame = pd.concat([data_frame, new_row])
                 merged_data = pd.concat([data_frame, existing_data])
@@ -436,19 +541,19 @@ class MainWindow(QMainWindow):
                 merged_data = pd.read_excel('merged.xlsx', index_col=0)
                 duplicate_rows = merged_data.duplicated(subset=columns_to_compare, keep=False)
                 duplicate_data = merged_data[duplicate_rows]
-                duplicate_data = duplicate_data.sort_values(by=['item_id', 'counter'])
+                # duplicate_data = duplicate_data.sort_values(by=['item_id'])
                 duplicate_data.to_excel('duplicate.xlsx')
                 for index, row in duplicate_data.iterrows():
                     if row['data_origin'] == 'sql':
                         index_sql.append(index)
                         data_from_sql.append(row[['item_id','linkurl', 'genre', 'type', 'journal_title', 'issn', 'eissn', 'publisher', 'vak',	'rcsi', 'wos', 'scopus', 'quartile', 'year', 'number', 'contnumber', 'volume', 'page_begin', 'page_end', 'language',
-                                         'doi',	'edn', 'grnti', 'risc', 'corerisc', 'counter']].values)
+                                         'doi',	'edn', 'grnti', 'risc', 'corerisc']].values)
                     elif row['data_origin'] == 'excel':
                         index_excel.append(index)
                         data_from_excel.append(row[['item_id', 'linkurl', 'genre', 'type', 'journal_title', 'issn', 'eissn',
                                         'publisher', 'vak', 'rcsi', 'wos', 'scopus', 'quartile', 'year', 'number',
                                         'contnumber', 'volume', 'page_begin', 'page_end', 'language',
-                                        'doi', 'edn', 'grnti', 'risc', 'corerisc', 'counter']].values)
+                                        'doi', 'edn', 'grnti', 'risc', 'corerisc']].values)
                 if(len(data_from_sql) > 0):
                     self.showDialog(data_from_sql, data_from_excel, index_sql, index_excel)
                     merged_data = merged_data[~((merged_data.index.isin(index_sql)) & (merged_data['data_origin'] == 'sql'))]
@@ -457,7 +562,7 @@ class MainWindow(QMainWindow):
                 merged_data = merged_data.dropna(how='all', subset=['item_id', 'linkurl', 'genre', 'type', 'journal_title', 'issn', 'eissn',
                                         'publisher', 'vak', 'rcsi', 'wos', 'scopus', 'quartile', 'year', 'number',
                                         'contnumber', 'volume', 'page_begin', 'page_end', 'language',
-                                        'doi', 'edn', 'grnti', 'risc', 'corerisc', 'counter'])
+                                        'doi', 'edn', 'grnti', 'risc', 'corerisc'])
                 if "Unnamed: 0" in merged_data.columns:
                     merged_data = merged_data.drop("Unnamed: 0", axis=1)
                 merged_data.to_excel('merged.xlsx')
@@ -475,6 +580,11 @@ class MainWindow(QMainWindow):
                 merged_data_filtered = pd.read_excel('merged_ao.xlsx')
                 print(merged_data_filtered)
                 merged_data_filtered.to_sql(table_name, engine, if_exists='replace', index=False)
+            elif table_name == 'article_authors_linkage':
+                merged_data = pd.concat([data_frame, existing_data])
+                merged_data = merged_data.drop_duplicates()
+                merged_data.to_excel('merged_link.xlsx')
+                merged_data.to_sql(table_name, engine, if_exists='replace', index=False)
         except Exception as e:
             print(f"An error occurred: {e}")
         finally:
@@ -498,6 +608,7 @@ class MainWindow(QMainWindow):
             self.ui.progressBar.setValue(80)
             self.ui.progressBar.setValue(90)
             self.import_xlsx_to_postgresql2(database_parametres, 'article.xlsx', 'article', None)
+            self.import_xlsx_to_postgresql2(database_parametres, 'article_authors_linkage.xlsx', 'article_authors_linkage', None)
             self.ui.progressBar.setValue(100)
             QMessageBox.information(self, "Успешный импорт", "Данные были перенесены в Базу Данных!")
         else:
@@ -639,7 +750,7 @@ class MainWindow(QMainWindow):
     def getYearAndSurname(self):
         specify_where_basic = []
         specify_where_advanced = []
-        text = self.ui.textEdit_2.toPlainText().strip()
+        text = self.ui.textEdit_2.text()
         selected_year_from = self.ui.comboBox_2.currentText()
         selected_year_to = self.ui.comboBox_3.currentText()
         if selected_year_from > selected_year_to:
@@ -649,13 +760,15 @@ class MainWindow(QMainWindow):
             if selected_year_from == 'None' and selected_year_to == 'None' and text == '':
              pass
             elif (selected_year_from != 'None' and selected_year_to == 'None' and text == ''):
-             specify_where_basic.append(f" article.year = {selected_year_from}")
+             specify_where_basic.append(f" subquery.year = {selected_year_from}")
             elif (selected_year_from != 'None' and selected_year_to != 'None' and text == ''):
-             specify_where_basic.append(f" article.year BETWEEN {selected_year_from} AND {selected_year_to}")
+             specify_where_basic.append(f" year BETWEEN {selected_year_from} AND {selected_year_to}")
+            elif selected_year_from == 'None' and selected_year_to == 'None' and text != '':
+                specify_where_advanced.append(f" author_id IN (SELECT  author_id FROM authors_organisations WHERE  author_name || ' ' || author_initials = '{text}')")
             elif (selected_year_from != 'None' and selected_year_to != 'None' and text != ''):
-             specify_where_advanced.append(f" subquery.year BETWEEN {selected_year_from} AND {selected_year_to} AND subquery.author_name = '{text}'")
+             specify_where_advanced.append(f" year BETWEEN {selected_year_from} AND {selected_year_to} AND author_id IN (SELECT author_id FROM authors_organisations WHERE author_name || ' ' || author_initials = '{text}')")
             elif (selected_year_from != 'None' and selected_year_to == 'None' and text != ''):
-             specify_where_advanced.append(f" subquery.year = {selected_year_from} AND subquery.author_name = '{text}'")
+             specify_where_advanced.append(f" year = {selected_year_from} AND author_id IN (SELECT  author_id FROM authors_organisations WHERE  author_name || ' ' || author_initials = '{text}')")
         if len(specify_where_basic) > 0 or (len(specify_where_basic) == 0 and len(specify_where_advanced) == 0 ):
             print(specify_where_basic)
             self.process_data(specify_where_basic)
@@ -668,6 +781,7 @@ class MainWindow(QMainWindow):
             row_data = []
             for column in range(self.ui.tableWidget_add_row.columnCount()):
                 item = self.ui.tableWidget_add_row.item(row, column)
+                print(item)
                 if item is not None:
                     cell_data = item.text()
                     row_data.append(cell_data)
@@ -680,18 +794,18 @@ class MainWindow(QMainWindow):
     def insertNewRowInWholeTable(self, row_1):
         try:
             query = """
-                        INSERT INTO article VALUES
-                        ({});
-                        """
-            query = query.format(row_1[0])
-
+                INSERT INTO article (item_id, linkurl, genre, type, journal_title, issn, eissn, publisher, vak, rcsi, wos, scopus, quartile,
+                year, number, contnumber, volume, page_begin, page_end, language, title_article, doi, edn, grnti, risc, corerisc, counter) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+            """
+            print(len(row_1))
             conn = psycopg2.connect(database=database_parametres['dbname'],
                                     user=database_parametres['user'],
                                     password=database_parametres['password'],
                                     host=database_parametres['host'],
                                     port=database_parametres['port'])
             cur = conn.cursor()
-            cur.execute(query)
+            cur.execute(query, row_1)
             conn.commit()
 
         except psycopg2.Error as e:
@@ -705,7 +819,6 @@ class MainWindow(QMainWindow):
                 cur.close()
             if conn:
                 conn.close()
-
 
     def authorsReferenceToSQL(self,database_params):
         fname = QFileDialog.getOpenFileName(self, "Open XML file", "", "All Files (*);; XML Files (*.xml)")
@@ -758,6 +871,11 @@ class MainWindow(QMainWindow):
     def on_pushButton_5_toggled(self):
         self.ui.stackedWidget.setCurrentIndex(5)
 
+    def on_article_authorDB_button_toggled(self):
+        self.ui.stackedWidget.setCurrentIndex(7)
+
+    def on_authorsDB_button_toggled(self):
+        self.ui.stackedWidget.setCurrentIndex(6)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

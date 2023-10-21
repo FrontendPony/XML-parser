@@ -8,11 +8,56 @@
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 import psycopg2
+from PyQt6.QtWidgets import QTableWidget, QCompleter
+from PyQt6.QtCore import Qt
 from dbsettings import database_parametres
 import pandas as pd
 from sqlalchemy import create_engine
 from dbsettings import database_parametres
 
+class Ui_Dialog2(object):
+    def setupUi(self, Dialog):
+        Dialog.setObjectName("Dialog")
+        Dialog.resize(921, 308)
+        self.verticalLayout = QtWidgets.QVBoxLayout(Dialog)
+        self.verticalLayout.setObjectName("verticalLayout")
+        self.label_2 = QtWidgets.QLabel(parent=Dialog)
+        self.label_2.setObjectName("label_2")
+        self.verticalLayout.addWidget(self.label_2)
+        self.tableWidget = QtWidgets.QTableWidget(parent=Dialog)
+        self.tableWidget.setMinimumSize(QtCore.QSize(0, 80))
+        self.tableWidget.setMaximumSize(QtCore.QSize(16777215, 80))
+        self.tableWidget.setRowCount(0)
+        self.tableWidget.setColumnCount(10)
+        self.tableWidget.setObjectName("tableWidget")
+        self.verticalLayout.addWidget(self.tableWidget)
+        self.label = QtWidgets.QLabel(parent=Dialog)
+        self.label.setObjectName("label")
+        self.verticalLayout.addWidget(self.label)
+        self.tableWidget_2 = QtWidgets.QTableWidget(parent=Dialog)
+        self.tableWidget_2.setMinimumSize(QtCore.QSize(0, 80))
+        self.tableWidget_2.setMaximumSize(QtCore.QSize(16777215, 80))
+        self.tableWidget_2.setRowCount(0)
+        self.tableWidget_2.setColumnCount(10)
+        self.tableWidget_2.setObjectName("tableWidget_2")
+        self.verticalLayout.addWidget(self.tableWidget_2)
+        self.pushButton = QtWidgets.QPushButton(parent=Dialog)
+        self.pushButton.setObjectName("pushButton")
+        self.verticalLayout.addWidget(self.pushButton)
+        self.pushButton_2 = QtWidgets.QPushButton(parent=Dialog)
+        self.pushButton_2.setObjectName("pushButton_2")
+        self.verticalLayout.addWidget(self.pushButton_2)
+
+        self.retranslateUi(Dialog)
+        QtCore.QMetaObject.connectSlotsByName(Dialog)
+
+    def retranslateUi(self, Dialog):
+        _translate = QtCore.QCoreApplication.translate
+        Dialog.setWindowTitle(_translate("Dialog", "Dialog"))
+        self.label_2.setText(_translate("Dialog", "Данные из Excel"))
+        self.label.setText(_translate("Dialog", "Данные из БД"))
+        self.pushButton.setText(_translate("Dialog", "Один человек"))
+        self.pushButton_2.setText(_translate("Dialog", "Разные люди"))
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
         Dialog.setObjectName("Dialog")
@@ -290,12 +335,105 @@ class Ui_MainWindow(object):
         self.widget1.setGeometry(QtCore.QRect(10, 0, 961, 831))
         self.widget1.setObjectName("widget1")
         self.tableWidget_article_2 = QtWidgets.QTableWidget(parent=self.widget1)
-        self.tableWidget_article_2.setGeometry(QtCore.QRect(0, 0, 961, 761))
+        self.tableWidget_article_2.setGeometry(QtCore.QRect(0, 60, 971, 631))
         self.tableWidget_article_2.setRowCount(0)
-        self.tableWidget_article_2.setColumnCount(100)
-        column_names_article = self.getColumnNames()
+        self.tableWidget_article_2.setColumnCount(26)
+        column_names_article = self.getColumnNames('article')
+        # self.tableWidget_article_2.setEditTriggers(QTableWidget.EditTrigger.AllEditTriggers)
+        self.dataLoadFromDB(self.tableWidget_article_2, 'SELECT * FROM article')
+        self.tableWidget_article_2.itemEntered.connect(self.handleItemChanged)
         self.tableWidget_article_2.setHorizontalHeaderLabels(column_names_article)
         self.tableWidget_article_2.setObjectName("tableWidget_article_2")
+        self.pushButton_3 = QtWidgets.QPushButton(parent=self.page_2)
+        self.pushButton_3.setGeometry(QtCore.QRect(230, 0, 121, 31))
+        self.pushButton_3.setStyleSheet("QPushButton {\n"
+                                        "    font-size: 12pt;\n"
+                                        "    color: yellow;\n"
+                                        "    font-weight: bold;\n"
+                                        "    border-radius: 8px;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#pushButton_3 {\n"
+                                        "    background-color:#eedd66;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#pushButton_3:hover {\n"
+                                        "    background-color: #eedd66f;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#pushButton_3:pressed {\n"
+                                        "    border: 4px solid #98c1fe;\n"
+                                        "}")
+        self.pushButton_3.setObjectName("pushButton_3")
+        self.pushButton_3.setText("Поиск")
+        self.textEdit_22 = QtWidgets.QTextEdit(parent=self.page_2)
+        self.textEdit_22.setGeometry(QtCore.QRect(10, 0, 191, 31))
+        self.textEdit_22.setStyleSheet("QTextEdit {\n"
+                                      "    border: 1px solid #ced4da;\n"
+                                      "    font-size: 10pt;\n"
+                                      "        color: gray;\n"
+                                      "        font-weight: bold;\n"
+                                      "    border-radius:16px;\n"
+                                      "}\n"
+                                      "")
+        self.textEdit_22.setObjectName("textEdit_22")
+        self.widget1 = QtWidgets.QWidget(parent=self.page_2)
+        self.widget1.setGeometry(QtCore.QRect(390, 0, 42, 50))
+        self.widget1.setObjectName("widget1")
+        self.verticalLayout_5 = QtWidgets.QVBoxLayout(self.widget1)
+        self.verticalLayout_5.setContentsMargins(0, 0, 0, 0)
+        self.verticalLayout_5.setObjectName("verticalLayout_5")
+        self.pushButton_6 = QtWidgets.QPushButton(parent=self.widget1)
+        self.pushButton_6.setStyleSheet("QPushButton {\n"
+                                        "    font-size: 12pt;\n"
+                                        "    color: white;\n"
+                                        "    font-weight: bold;\n"
+                                        "    border-radius: 8px;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#Primary {\n"
+                                        "    background-color:#eedd66;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#Primary:hover {\n"
+                                        "    background-color: #eedd66f;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#Primary:pressed {\n"
+                                        "    border: 4px solid #98c1fe;\n"
+                                        "}")
+        self.pushButton_6.setText("")
+        icon2 = QtGui.QIcon()
+        icon2.addPixmap(QtGui.QPixmap("icons/upper_arrow.jpeg"), QtGui.QIcon.Mode.Normal,
+                        QtGui.QIcon.State.Off)
+        self.pushButton_6.setIcon(icon2)
+        self.pushButton_6.setObjectName("pushButton_6")
+        self.verticalLayout_5.addWidget(self.pushButton_6)
+        self.pushButton_4 = QtWidgets.QPushButton(parent=self.widget1)
+        self.pushButton_4.setStyleSheet("QPushButton {\n"
+                                        "    font-size: 12pt;\n"
+                                        "    color: yellow;\n"
+                                        "    font-weight: bold;\n"
+                                        "    border-radius: 8px;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#Primary {\n"
+                                        "    background-color:#eedd66;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#Primary:hover {\n"
+                                        "    background-color: #eedd66f;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#Primary:pressed {\n"
+                                        "    border: 4px solid #98c1fe;\n"
+                                        "}")
+        self.pushButton_4.setText("")
+        icon3 = QtGui.QIcon()
+        icon3.addPixmap(QtGui.QPixmap("icons/down_arrow.jpeg"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
+        self.pushButton_4.setIcon(icon3)
+        self.pushButton_4.setObjectName("pushButton_4")
+        self.verticalLayout_5.addWidget(self.pushButton_4)
         self.changeDatainDatabaseButton_2 = QtWidgets.QPushButton(parent=self.widget1)
         self.changeDatainDatabaseButton_2.setGeometry(QtCore.QRect(310, 770, 341, 51))
         #self.changeDatainDatabaseButton_2.clicked.connect(lambda: self.readDataFromTableWidgetAndPushToSQL(self.tableWidget_article_2))
@@ -382,7 +520,14 @@ class Ui_MainWindow(object):
 "    border: 4px solid #98c1fe;\n"
 "}")
         self.Primary_3.setObjectName("Primary_3")
-        self.textEdit_2 = QtWidgets.QTextEdit(parent=self.widget_2)
+        self.textEdit_2 = QtWidgets.QLineEdit(parent=self.widget_2)
+        # Sample data for the drop-down list
+        data_textEdit = self.loadFullNamesFromDB()
+        # self.articleDB_button.clicked.connect(lambda: self.dataLoadFromDB(self.tableWidget_article_2, 'SELECT * FROM article'))
+        # Create a QCompleter and set it for the QLineEdit
+        completer = QCompleter(data_textEdit)
+        completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self.textEdit_2.setCompleter(completer)
         self.textEdit_2.setGeometry(QtCore.QRect(170, 50, 181, 31))
         self.textEdit_2.setStyleSheet("QTextEdit {\n"
 "    border: 1px solid #ced4da;\n"
@@ -552,9 +697,209 @@ class Ui_MainWindow(object):
         self.stackedWidget.addWidget(self.page_10)
         self.page_3 = QtWidgets.QWidget()
         self.page_3.setObjectName("page_3")
+        self.tableWidget_article_author = QtWidgets.QTableWidget(parent=self.page_3)
+        self.tableWidget_article_author.setGeometry(QtCore.QRect(10, 45, 951, 711))
+        self.tableWidget_article_author.setObjectName("tableWidget_article_author")
+        self.tableWidget_article_author.setColumnCount(2)
+        self.tableWidget_article_author.setRowCount(100)
+        column_names_ao_linkage = self.getColumnNames('article_authors_linkage')
+        self.tableWidget_article_author.setHorizontalHeaderLabels(column_names_ao_linkage)
+        self.dataLoadFromDB(self.tableWidget_article_author, 'SELECT * FROM article_authors_linkage')
+        self.pushButton_10 = QtWidgets.QPushButton(parent=self.page_3)
+        self.pushButton_10.setGeometry(QtCore.QRect(230, 0, 121, 31))
+        self.pushButton_10.setStyleSheet("QPushButton {\n"
+                                        "    font-size: 12pt;\n"
+                                        "    color: yellow;\n"
+                                        "    font-weight: bold;\n"
+                                        "    border-radius: 8px;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#pushButton_3 {\n"
+                                        "    background-color:#eedd66;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#pushButton_3:hover {\n"
+                                        "    background-color: #eedd66f;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#pushButton_3:pressed {\n"
+                                        "    border: 4px solid #98c1fe;\n"
+                                        "}")
+        self.pushButton_10.setObjectName("pushButton_3")
+        self.pushButton_10.setText("Поиск")
+        self.textEdit_10 = QtWidgets.QTextEdit(parent=self.page_3)
+        self.textEdit_10.setGeometry(QtCore.QRect(10, 0, 191, 31))
+        self.textEdit_10.setStyleSheet("QTextEdit {\n"
+                                       "    border: 1px solid #ced4da;\n"
+                                       "    font-size: 10pt;\n"
+                                       "        color: gray;\n"
+                                       "        font-weight: bold;\n"
+                                       "    border-radius:16px;\n"
+                                       "}\n"
+                                       "")
+        self.textEdit_10.setObjectName("textEdit_22")
+        self.widget1 = QtWidgets.QWidget(parent=self.page_3)
+        self.widget1.setGeometry(QtCore.QRect(390, 0, 42, 50))
+        self.widget1.setObjectName("widget1")
+        self.verticalLayout_6 = QtWidgets.QVBoxLayout(self.widget1)
+        self.verticalLayout_6.setContentsMargins(0, 0, 0, 0)
+        self.verticalLayout_6.setObjectName("verticalLayout_5")
+        self.pushButton_6 = QtWidgets.QPushButton(parent=self.widget1)
+        self.pushButton_6.setStyleSheet("QPushButton {\n"
+                                        "    font-size: 12pt;\n"
+                                        "    color: white;\n"
+                                        "    font-weight: bold;\n"
+                                        "    border-radius: 8px;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#Primary {\n"
+                                        "    background-color:#eedd66;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#Primary:hover {\n"
+                                        "    background-color: #eedd66f;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#Primary:pressed {\n"
+                                        "    border: 4px solid #98c1fe;\n"
+                                        "}")
+        self.pushButton_6.setText("")
+        icon2 = QtGui.QIcon()
+        icon2.addPixmap(QtGui.QPixmap("icons/upper_arrow.jpeg"), QtGui.QIcon.Mode.Normal,
+                        QtGui.QIcon.State.Off)
+        self.pushButton_6.setIcon(icon2)
+        self.pushButton_6.setObjectName("pushButton_6")
+        self.verticalLayout_6.addWidget(self.pushButton_6)
+        self.pushButton_4 = QtWidgets.QPushButton(parent=self.widget1)
+        self.pushButton_4.setStyleSheet("QPushButton {\n"
+                                        "    font-size: 12pt;\n"
+                                        "    color: yellow;\n"
+                                        "    font-weight: bold;\n"
+                                        "    border-radius: 8px;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#Primary {\n"
+                                        "    background-color:#eedd66;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#Primary:hover {\n"
+                                        "    background-color: #eedd66f;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#Primary:pressed {\n"
+                                        "    border: 4px solid #98c1fe;\n"
+                                        "}")
+        self.pushButton_4.setText("")
+        icon3 = QtGui.QIcon()
+        icon3.addPixmap(QtGui.QPixmap("icons/down_arrow.jpeg"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
+        self.pushButton_4.setIcon(icon3)
+        self.pushButton_4.setObjectName("pushButton_4")
+        self.verticalLayout_6.addWidget(self.pushButton_4)
+        # self.changeDatainDatabaseButton_2 = QtWidgets.QPushButton(parent=self.widget1)
+        # self.changeDatainDatabaseButton_2.setGeometry(QtCore.QRect(310, 770, 341, 51))
+        # self.changeDatainDatabaseButton_2.clicked.connect(lambda: self.readDataFromTableWidgetAndPushToSQL(self.tableWidget_article_2))
+        # self.changeDatainDatabaseButton_2.setObjectName("changeDatainDatabaseButton_2")
         self.stackedWidget.addWidget(self.page_3)
         self.page_4 = QtWidgets.QWidget()
         self.page_4.setObjectName("page_4")
+        self.tableWidget_authors = QtWidgets.QTableWidget(parent=self.page_4)
+        self.tableWidget_authors.setGeometry(QtCore.QRect(10, 45, 951, 611))
+        self.tableWidget_authors.setObjectName("tableWidget_authors")
+        self.tableWidget_authors.setColumnCount(6)
+        self.tableWidget_authors.setRowCount(100)
+        column_names_authors_organisations = self.getColumnNames('authors_organisations')
+        self.tableWidget_authors.setHorizontalHeaderLabels(column_names_authors_organisations)
+        self.dataLoadFromDB(self.tableWidget_authors, 'SELECT * FROM authors_organisations')
+        self.pushButton_11 = QtWidgets.QPushButton(parent=self.page_4)
+        self.pushButton_11.setGeometry(QtCore.QRect(230, 0, 121, 31))
+        self.pushButton_11.setStyleSheet("QPushButton {\n"
+                                         "    font-size: 12pt;\n"
+                                         "    color: yellow;\n"
+                                         "    font-weight: bold;\n"
+                                         "    border-radius: 8px;\n"
+                                         "}\n"
+                                         "\n"
+                                         "#pushButton_3 {\n"
+                                         "    background-color:#eedd66;\n"
+                                         "}\n"
+                                         "\n"
+                                         "#pushButton_3:hover {\n"
+                                         "    background-color: #eedd66f;\n"
+                                         "}\n"
+                                         "\n"
+                                         "#pushButton_3:pressed {\n"
+                                         "    border: 4px solid #98c1fe;\n"
+                                         "}")
+        self.pushButton_11.setObjectName("pushButton_11")
+        self.pushButton_11.setText("Поиск")
+        self.textEdit_11 = QtWidgets.QTextEdit(parent=self.page_4)
+        self.textEdit_11.setGeometry(QtCore.QRect(10, 0, 191, 31))
+        self.textEdit_11.setStyleSheet("QTextEdit {\n"
+                                       "    border: 1px solid #ced4da;\n"
+                                       "    font-size: 10pt;\n"
+                                       "        color: gray;\n"
+                                       "        font-weight: bold;\n"
+                                       "    border-radius:16px;\n"
+                                       "}\n"
+                                       "")
+        self.textEdit_11.setObjectName("textEdit_22")
+        self.widget1 = QtWidgets.QWidget(parent=self.page_4)
+        self.widget1.setGeometry(QtCore.QRect(390, 0, 42, 50))
+        self.widget1.setObjectName("widget1")
+        self.verticalLayout_7 = QtWidgets.QVBoxLayout(self.widget1)
+        self.verticalLayout_7.setContentsMargins(0, 0, 0, 0)
+        self.verticalLayout_7.setObjectName("verticalLayout_5")
+        self.pushButton_7 = QtWidgets.QPushButton(parent=self.widget1)
+        self.pushButton_7.setStyleSheet("QPushButton {\n"
+                                        "    font-size: 12pt;\n"
+                                        "    color: white;\n"
+                                        "    font-weight: bold;\n"
+                                        "    border-radius: 8px;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#Primary {\n"
+                                        "    background-color:#eedd66;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#Primary:hover {\n"
+                                        "    background-color: #eedd66f;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#Primary:pressed {\n"
+                                        "    border: 4px solid #98c1fe;\n"
+                                        "}")
+        self.pushButton_7.setText("")
+        icon2 = QtGui.QIcon()
+        icon2.addPixmap(QtGui.QPixmap("icons/upper_arrow.jpeg"), QtGui.QIcon.Mode.Normal,
+                        QtGui.QIcon.State.Off)
+        self.pushButton_7.setIcon(icon2)
+        self.pushButton_7.setObjectName("pushButton_7")
+        self.verticalLayout_6.addWidget(self.pushButton_7)
+        self.pushButton_8 = QtWidgets.QPushButton(parent=self.widget1)
+        self.pushButton_8.setStyleSheet("QPushButton {\n"
+                                        "    font-size: 12pt;\n"
+                                        "    color: yellow;\n"
+                                        "    font-weight: bold;\n"
+                                        "    border-radius: 8px;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#Primary {\n"
+                                        "    background-color:#eedd66;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#Primary:hover {\n"
+                                        "    background-color: #eedd66f;\n"
+                                        "}\n"
+                                        "\n"
+                                        "#Primary:pressed {\n"
+                                        "    border: 4px solid #98c1fe;\n"
+                                        "}")
+        self.pushButton_8.setText("")
+        icon3 = QtGui.QIcon()
+        icon3.addPixmap(QtGui.QPixmap("icons/down_arrow.jpeg"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.Off)
+        self.pushButton_8.setIcon(icon3)
+        self.pushButton_8.setObjectName("pushButton_4")
+        self.verticalLayout_7.addWidget(self.pushButton_8)
         self.stackedWidget.addWidget(self.page_4)
         self.page_5 = QtWidgets.QWidget()
         self.page_5.setObjectName("page_5")
@@ -605,9 +950,17 @@ class Ui_MainWindow(object):
         self.articleDB_button_iconwidget.setIconSize(QtCore.QSize(20, 20))
         self.articleDB_button_iconwidget.setCheckable(True)
         self.articleDB_button_iconwidget.setAutoExclusive(True)
-        self.articleDB_button_iconwidget.clicked.connect(lambda: self.dataLoadFromDB(self.tableWidget_article_2, 'SELECT * FROM article'))
+        # self.articleDB_button_iconwidget.clicked.connect(lambda: self.dataLoadFromDB(self.tableWidget_article_2, 'SELECT * FROM article'))
         self.articleDB_button_iconwidget.setObjectName("articleDB_button_iconwidget")
         self.verticalLayout.addWidget(self.articleDB_button_iconwidget)
+        self.article_authorDB_button_iconwidget = QtWidgets.QPushButton(parent=self.widget_onlyicons)
+        self.article_authorDB_button_iconwidget.setText("")
+        self.article_authorDB_button_iconwidget.setIcon(icon4)
+        self.article_authorDB_button_iconwidget.setIconSize(QtCore.QSize(20, 20))
+        self.article_authorDB_button_iconwidget.setCheckable(True)
+        self.article_authorDB_button_iconwidget.setAutoExclusive(True)
+        self.article_authorDB_button_iconwidget.setObjectName("article_authorDB_button_iconwidget")
+        self.verticalLayout.addWidget(self.article_authorDB_button_iconwidget)
         self.addingdatatoBD_button_iconwidget = QtWidgets.QPushButton(parent=self.widget_onlyicons)
         self.addingdatatoBD_button_iconwidget.setText("")
         self.addingdatatoBD_button_iconwidget.setIcon(icon4)
@@ -705,9 +1058,21 @@ class Ui_MainWindow(object):
         self.articleDB_button.setIcon(icon4)
         self.articleDB_button.setCheckable(True)
         self.articleDB_button.setAutoExclusive(True)
-        self.articleDB_button.clicked.connect(lambda: self.dataLoadFromDB(self.tableWidget_article_2, 'SELECT * FROM article'))
+        # self.articleDB_button.clicked.connect(lambda: self.dataLoadFromDB(self.tableWidget_article_2, 'SELECT * FROM article'))
         self.articleDB_button.setObjectName("articleDB_button")
         self.verticalLayout_2.addWidget(self.articleDB_button)
+        self.article_authorDB_button = QtWidgets.QPushButton(parent=self.widget_expanded)
+        self.article_authorDB_button.setIcon(icon4)
+        self.article_authorDB_button.setCheckable(True)
+        self.article_authorDB_button.setAutoExclusive(True)
+        self.article_authorDB_button.setObjectName("article_authorDB_button")
+        self.verticalLayout_2.addWidget(self.article_authorDB_button)
+        self.authorsDB_button = QtWidgets.QPushButton(parent=self.widget_expanded)
+        self.authorsDB_button.setIcon(icon4)
+        self.authorsDB_button.setCheckable(True)
+        self.authorsDB_button.setAutoExclusive(True)
+        self.authorsDB_button.setObjectName("authorsDB_button")
+        self.verticalLayout_2.addWidget(self.authorsDB_button)
         self.addingdatatoBD_button = QtWidgets.QPushButton(parent=self.widget_expanded)
         self.addingdatatoBD_button.setIcon(icon4)
         self.addingdatatoBD_button.setCheckable(True)
@@ -807,6 +1172,7 @@ class Ui_MainWindow(object):
         self.comboBox_3.setItemText(5, _translate("MainWindow", "2022"))
         self.comboBox_3.setItemText(6, _translate("MainWindow", "2023"))
         self.comboBox_3.setItemText(7, _translate("MainWindow", "2024"))
+        self.comboBox_3.setItemText(7, _translate("MainWindow", "2024"))
         self.comboBox_3.setItemText(8, _translate("MainWindow", "2025"))
         self.comboBox_3.setItemText(9, _translate("MainWindow", "2026"))
         self.comboBox_3.setItemText(10, _translate("MainWindow", "2027"))
@@ -814,15 +1180,45 @@ class Ui_MainWindow(object):
         self.general_data_export_button.setText(_translate("MainWindow", "Export to Excel"))
         self.label_3.setText(_translate("MainWindow", "  Database"))
         self.home_button_iconexpandedwidget.setText(_translate("MainWindow", "Главная"))
-        self.articleDB_button.setText(_translate("MainWindow", "Article"))
+        self.articleDB_button.setText(_translate("MainWindow", "article"))
+        self.article_authorDB_button.setText(_translate("MainWindow", "article_authors_linkage"))
         self.addingdatatoBD_button.setText(_translate("MainWindow", "Добавление данных"))
         self.import_button_expandedwidget.setText(_translate("MainWindow", "Импорт"))
         self.export_button_expandedwidget.setText(_translate("MainWindow", "Экспорт"))
         self.pushButton_2.setText(_translate("MainWindow", "Общий экспорт"))
+        self.authorsDB_button.setText(_translate("MainWindow", "authors_organisations"))
         self.exit_button_expandedwidget.setText(_translate("MainWindow", "Выход"))
 
-    def getColumnNames(self):
-        query = "SELECT * FROM article WHERE 1=0;"
+    def handleItemChanged(self, item):
+        try:
+            row = item.row()
+            column = item.column()
+            new_value = item.text()
+            # record_id = self.tableWidget_article_2.item(row, 0).text()
+            # print(record_id)
+            # column_name = self.tableWidget_article_2.horizontalHeaderItem(column).text()
+            #
+            # conn = psycopg2.connect(database=database_parametres['dbname'],
+            #                         user=database_parametres['user'],
+            #                         password=database_parametres['password'],
+            #                         host=database_parametres['host'],
+            #                         port=database_parametres['port'])
+            # cursor = conn.cursor()
+            # cursor.execute(f"UPDATE article SET {column_name} = %s WHERE item_id = %s", (new_value, record_id))
+            # conn.commit()
+
+            print(f"Cell at row {row}, column {column} changed to: {new_value}")
+        except psycopg2.Error as e:
+            print(f"Error: {e}")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+        finally:
+            pass
+            # cursor.close()
+            # conn.close()
+
+    def getColumnNames(self, table_name):
+        query = f"SELECT * FROM {table_name} WHERE 1=0;"
         connection_str = f"postgresql://{database_parametres['user']}:{database_parametres['password']}@{database_parametres['host']}:{database_parametres['port']}/{database_parametres['dbname']}"
         engine = create_engine(connection_str)
         existing_data = pd.read_sql(query, engine)
@@ -847,6 +1243,19 @@ class Ui_MainWindow(object):
         conn.close()
         print(result[0][0])
         return result[0][0]
+    def loadFullNamesFromDB(self):
+        conn = psycopg2.connect(database=database_parametres['dbname'],
+                                user=database_parametres['user'],
+                                password=database_parametres['password'],
+                                host=database_parametres['host'],
+                                port=database_parametres['port'])
+        cur = conn.cursor()
+        cur.execute("SELECT DISTINCT author_name || ' ' ||  author_initials FROM authors_organisations")
+        result = cur.fetchall()
+        result = [item[0] for item in result]
+        cur.close()
+        conn.close()
+        return result
 
     def dataLoadFromDB(self, tableWidget, query):
         conn = psycopg2.connect(database=database_parametres['dbname'],
@@ -885,7 +1294,7 @@ class Ui_MainWindow(object):
 
         print(data[0])
         data_from_function = data
-        column_names = self.getColumnNames()
+        column_names = self.getColumnNames('article')
         df = pd.DataFrame(data_from_function, columns=column_names)
         self.insertNewRowInTable(df)
 

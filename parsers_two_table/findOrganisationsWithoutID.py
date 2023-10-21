@@ -92,4 +92,4 @@ def update_org_id(excel_file_path):
     df.to_excel('authors_organisations.xlsx')
 
 if __name__ == "__main__":
-    update_org_id('../authors_organisations.xlsx')
+    update_org_id('authors_organisations.xlsx')

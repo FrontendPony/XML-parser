@@ -6,6 +6,16 @@ from dbsettings import database_parametres
 import psycopg2
 import re
 from find_similar_fullnames import find_similar_fullnames
+from PyQt6.QtWidgets import QApplication, QDialog
+from interface import Ui_Dialog2
+
+def show_dialog():
+    app = QApplication([])  # Create a QApplication if not already created
+    dialog = QDialog()
+    ui = Ui_Dialog2()
+    ui.setupUi(dialog)
+    dialog.show()
+    app.exec()
 def extract_numbers_from_string(input_string):
     pattern = r'\d+'
     number = re.findall(pattern, input_string)
@@ -42,10 +52,11 @@ def parse_articles_to_excel(xml_filename):
     cur.execute(query)
     fetcheData = cur.fetchone()
     number = extract_numbers_from_string(str(fetcheData))
-    fields = {"item_id": [], 'linkurl': [], 'genre': [], 'type': [], "journal_title": [], "issn": [], "eissn": [],
+    fields = {'item_id': [], 'linkurl': [], 'genre': [], 'type': [], "journal_title": [], "issn": [], "eissn": [],
               "publisher": [], "vak": [], "rcsi": [], "wos": [], "scopus": [], "quartile": [], "year": [], "number": [],
               'contnumber': [], "volume": [], "page_begin": [], "page_end": [], "language": [], "title_article": [],
-              "doi": [], "edn": [], 'grnti': [], 'risc': [], 'corerisc': [], 'counter': []}
+              "doi": [], "edn": [], 'grnti': [], 'risc': [], 'corerisc': []}
+    fields_extra = {"item_id": [], 'counter': []}
 
     fd = open(xml_filename, 'r', encoding='utf-8')
     xml_file = fd.read()
@@ -68,6 +79,7 @@ def parse_articles_to_excel(xml_filename):
     author_count = []
     for tag in soup.findAll("item"):
         # item
+        fields_extra['item_id'].append(tag['id'])
         fields['item_id'].append(tag['id'])
         fields['linkurl'].append(tag.find('linkurl').text if tag.find('linkurl') is not None else "")
         linkurl = tag.find('linkurl').text if tag.find('linkurl') is not None else ""
@@ -316,15 +328,17 @@ def parse_articles_to_excel(xml_filename):
                                 count_author_org.append(counter_dict_fornull_author_and_org[key])
                 except TypeError:
                     continue
-        fields['counter'].append(count_author_org)
+        fields_extra['counter'].append(count_author_org)
     article = pd.DataFrame(data=fields)
-    article = article.explode('counter')
+    article_extra = pd.DataFrame(data=fields_extra)
+    article_extra = article_extra.explode('counter')
 
     authors_organisations = pd.DataFrame(author_organisation,
                                          columns=['counter', 'author_id', 'author_name', 'author_initials', 'org_id', 'org_name'])
     authors_organisations['author_fullname'] = authors_organisations['author_name'] + ' ' + authors_organisations['author_initials']
     authors_organisations.to_excel('authors_organisations.xlsx', index=False)
     article.to_excel("article.xlsx", index=False)
+    article_extra.to_excel('article_authors_linkage.xlsx', index=False)
     fd.close()
 
     unique_author_pairs = set()  # To keep track of unique author_name + author_initials pairs

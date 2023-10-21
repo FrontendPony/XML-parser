@@ -15,7 +15,7 @@ def deduplicate_excel(excel_file):
         print(rows_to_delete)
         df = df[~df['counter'].isin(rows_to_delete)]
         df.to_excel(excel_file, index=False)
-        delete_rows_in_excel('article.xlsx', rows_to_delete)
+        delete_rows_in_excel('article_authors_linkage.xlsx', rows_to_delete)
 
     except Exception as e:
         print(f"An error occurred: {str(e)}")

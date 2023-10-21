@@ -8,7 +8,13 @@ import random
 import os
 import time
 import psutil
-
+def fill_enter_id(row):
+    if 'possible_id_from_db' in row.index and  row['possible_id_from_db'] != ' ':
+        return row['possible_id_from_db']
+    elif 'possible_id_from_xml' in row.index and row['possible_id_from_xml'] != ' ':
+        return row['possible_id_from_xml']
+    else:
+        return row['generated_ids']
 
 
 def generate_unique_id(author_id_list):
@@ -64,18 +70,20 @@ def update_author_id(excel_file_path):
         df_null.to_excel('author_filtered_data.xlsx')
     except Exception as e:
         print("An error occurred:", str(e))
+
     def check_author_id(file_path):
         df = pd.read_excel(file_path)
         return all(df['enter_id'] != ' ')
 
-
     if 'possible_id_from_db' in df_null.columns and os.path.exists('alternative_names.xlsx'):
-        print('exists')
         df_null = pd.read_excel('author_filtered_data.xlsx', index_col=0)
         df_alternative = pd.read_excel('alternative_names.xlsx')
         df_null['alternative_name'] = df_null['possible_id_from_db'].map(
-        df_alternative.set_index('enter_id')['new_column_name'])
+            df_alternative.set_index('enter_id')['new_column_name'])
         df_null.to_excel('author_filtered_data.xlsx')
+    df_null = pd.read_excel('author_filtered_data.xlsx', index_col=0)
+    # df_null['enter_id'] = df_null.apply(fill_enter_id, axis=1)
+    df_null.to_excel('author_filtered_data.xlsx')
     find_similar_fullnames('author_filtered_data.xlsx')
     apply_fill_colors('author_filtered_data.xlsx')
     while True:
@@ -109,5 +117,5 @@ def update_author_id(excel_file_path):
     merge_authors_by_enter_id('author_filtered_data.xlsx', 'alternative_names.xlsx')
 
 if __name__ == "__main__":
-    update_author_id('../authors_organisations.xlsx')
+    update_author_id('authors_organisations.xlsx')
 

@@ -1,6 +1,7 @@
 from thefuzz import fuzz
 from dbsettings import database_parametres
 from sqlalchemy import create_engine
+from find_rearranged_ids import filter_arrays
 import pandas as pd
 
 def extract_initials(name):
@@ -24,7 +25,6 @@ def update_author_id(excel_file_path):
         matched_records = []
         matched_ids = []
 
-        # Iterate through each row in filtered_author_info
         for index, row in filtered_df.iterrows():
             author_id_filter = int(row['author_id'])
             author_name_filter = row['author_name']
@@ -36,7 +36,7 @@ def update_author_id(excel_file_path):
                 author_name_db = db_row['author_name']
                 author_initials_db = db_row['author_initials']
                 similarity_ratio = fuzz.ratio(author_name_db,  author_name_filter)
-                if similarity_ratio >= 80 and author_id_filter != author_id_db:
+                if similarity_ratio >= 80 and author_id_filter != author_id_db :
                     if '.' in author_name_initials and  '.' in author_initials_db and author_name_initials == author_initials_db:
                         if [author_id_db, author_id_filter] not in matched_ids:
                             matched_records.append([author_counter_db, author_id_db, author_name_db, author_initials_db,
@@ -63,12 +63,10 @@ def update_author_id(excel_file_path):
                                 matched_records.append([author_counter_db, author_id_db, author_name_db, author_initials_db,
                                            author_counter, author_id_filter, author_name_filter, author_name_initials])
                                 matched_ids.append([author_id_db, author_id_filter])
+        matched_records = filter_arrays(matched_records)
         for record in matched_records:
             print(record)
-
-
     except Exception as e:
         print(f"An error occurred: {str(e)}")
 
-# Call the function with the Excel file path
 update_author_id('author_filtered_data.xlsx')

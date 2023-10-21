@@ -9,7 +9,7 @@ def update_excel_file(input_file_path):
     else:
         for i in range(1, len(df)):
             if df.index[i - 1] > df.index[i]:
-                df.iat[i, 27] = 'sql'
+                df.iat[i, 26] = 'sql'
         df.to_excel(input_file_path)
         df = pd.read_excel(input_file_path)
         sql_index = df[df['data_origin'] == 'sql'].index[0]
