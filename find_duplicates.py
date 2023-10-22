@@ -14,6 +14,9 @@ def deduplicate_excel(excel_file):
                 rows_to_delete.extend(group.loc[group['counter'] != group['counter'].min(), 'counter'])
         print(rows_to_delete)
         df = df[~df['counter'].isin(rows_to_delete)]
+        if excel_file == 'merged_ao.xlsx':
+            print(228)
+            df = df.drop_duplicates(subset='counter', keep='first')
         df.to_excel(excel_file, index=False)
         delete_rows_in_excel('article_authors_linkage.xlsx', rows_to_delete)
 

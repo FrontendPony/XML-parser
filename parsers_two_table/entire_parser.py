@@ -332,11 +332,11 @@ def parse_articles_to_excel(xml_filename):
     article = pd.DataFrame(data=fields)
     article_extra = pd.DataFrame(data=fields_extra)
     article_extra = article_extra.explode('counter')
-
     authors_organisations = pd.DataFrame(author_organisation,
                                          columns=['counter', 'author_id', 'author_name', 'author_initials', 'org_id', 'org_name'])
     authors_organisations['author_fullname'] = authors_organisations['author_name'] + ' ' + authors_organisations['author_initials']
     authors_organisations.to_excel('authors_organisations.xlsx', index=False)
+    authors_organisations.to_excel('authors_organisations_initial.xlsx', index=False)
     article.to_excel("article.xlsx", index=False)
     article_extra.to_excel('article_authors_linkage.xlsx', index=False)
     fd.close()

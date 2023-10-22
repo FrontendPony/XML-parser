@@ -14,7 +14,6 @@ def merge_authors_by_enter_id(input_file, output_file):
             lambda x: ', '.join(sorted(set(x.split(', ')))))
         merged_df.drop_duplicates(subset=['enter_id'], inplace=True)
         merged_df.reset_index(drop=True, inplace=True)
-        print(merged_df)
         merged_df.to_excel(output_file, index=False)
         return True
     except Exception as e:

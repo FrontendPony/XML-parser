@@ -6,7 +6,13 @@ import os
 import time
 import psutil
 
-
+def fill_enter_id(row):
+    if 'possible_id_from_db' in row.index and  row['possible_id_from_db'] != ' ':
+        return row['possible_id_from_db']
+    elif 'possible_id_from_xml' in row.index and row['possible_id_from_xml'] != ' ':
+        return row['possible_id_from_xml']
+    else:
+        return row['generated_ids']
 def generate_unique_id(org_id_list):
     while True:
         new_id = random.randint(1000000000, 9999999999)
@@ -59,6 +65,7 @@ def update_org_id(excel_file_path):
     except Exception as e:
         print("An error occurred:", str(e))
     df_null['enter_id'] = ''
+    df_null['enter_id'] = df_null.apply(fill_enter_id, axis=1)
     df_null.to_excel('org_filtered_data.xlsx')
     def check_author_id(file_path):
         df = pd.read_excel(file_path)

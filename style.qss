@@ -136,6 +136,7 @@
 	}
 /*= END
 
+
   /*= Style for user information button START
   ==================================================== */
 	#add_one_row_button {
@@ -185,4 +186,16 @@ MainWindow {
 		border-radius: 25px;
 	}
 /*= END
+
+  /*= Style for user information button START
+  ==================================================== */
+	#pushButton_28 {
+		color:white;
+		background-color:#eadb6c;
+		font-weight: bold;
+		font-size: 12pt;
+		border-radius: 25px;
+	}
+/*= END
+
 

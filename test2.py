@@ -1,7 +1,7 @@
 import psycopg2
 from dbsettings import database_parametres as database_parameters
 
-query = f"DELETE FROM authors_organisations"
+query = f"DELETE FROM article;DELETE  FROM authors_organisations;DELETE FROM article_authors_linkage;"
 
 
 # Connect to the database
