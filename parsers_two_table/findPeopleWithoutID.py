@@ -4,14 +4,15 @@ from dbsettings import database_parametres
 from find_similar_fullnames import find_similar_fullnames
 from apply_colours_to_excel import apply_fill_colors
 from find_alternative_names import merge_authors_by_enter_id
+from find_ru_en_equivalents import process_excel_file
 import random
 import os
 import time
 import psutil
 def fill_enter_id(row):
-    if 'reference_id' in row.index and row['reference_id'] != ' ':
+    if 'reference_id' in row.index and (row['reference_id'] != ' ' and row['reference_id'] != '-'):
         return row['reference_id']
-    elif 'possible_id_from_db' in row.index and  row['possible_id_from_db'] != ' ':
+    elif 'possible_id_from_db' in row.index and row['possible_id_from_db'] != ' ':
         return row['possible_id_from_db']
     elif 'possible_id_from_xml' in row.index and row['possible_id_from_xml'] != ' ':
         return row['possible_id_from_xml']
@@ -83,31 +84,34 @@ def update_author_id(excel_file_path):
         df_null['alternative_name'] = df_null['possible_id_from_db'].map(
             df_alternative.set_index('enter_id')['new_column_name'])
         df_null.to_excel('author_filtered_data.xlsx')
-    df_null = pd.read_excel('author_filtered_data.xlsx', index_col=0)
-    df_null['enter_id'] = df_null.apply(fill_enter_id, axis=1)
-    df_null.to_excel('author_filtered_data.xlsx')
+    process_excel_file('author_filtered_data.xlsx')
     def add_reference_id(df_reference, df2):
         reference_id = []
 
         for index, row in df2.iterrows():
             match = df_reference[
-                (df_reference['publication_author'] == row['author_name'] + ' ' + row['author_initials']) |
-                (df_reference['lastname'] + ' ' + df_reference['first_name'] + ' ' + df_reference['patronymic'] == row['author_fullname'])]
+                (df_reference['Автор публикации'] == row['author_name'] + ' ' + row['author_initials']) |
+                (df_reference['фамилия'] + ' ' + df_reference['имя'] + ' ' + df_reference['отчество'] == row['author_fullname'])]
 
             if not match.empty:
-                reference_id.append(match['author_id'].values[0])
+                reference_id.append(match['РИНЦ ID'].values[0])
             else:
                 reference_id.append(' ')
 
         df2['reference_id'] = reference_id
         df2.to_excel('author_filtered_data.xlsx')
-    df_reference = pd.read_excel('authors_reference.xlsx')
+    df_reference = pd.read_excel('authors_ref.xlsx', sheet_name='РИНЦ ID')
     df_null = pd.read_excel('author_filtered_data.xlsx')
-    print(df_null.columns)
     add_reference_id(df_reference, df_null)
+    df_null = pd.read_excel('author_filtered_data.xlsx', index_col=0)
+    df_null['enter_id'] = df_null.apply(fill_enter_id, axis=1)
+    df_null.to_excel('author_filtered_data.xlsx')
+
+
 
     find_similar_fullnames('author_filtered_data.xlsx')
     apply_fill_colors('author_filtered_data.xlsx')
+
     while True:
         os.system(f'start excel author_filtered_data.xlsx')
         while True:

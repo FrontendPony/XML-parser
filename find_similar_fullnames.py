@@ -28,7 +28,7 @@ def find_similar_fullnames(file_path):
 
             # Concatenate all group DataFrames into one DataFrame
             result_df = pd.concat(group_dfs)
-
+            result_df = result_df.loc[:, ~result_df.columns.str.contains('^Unnamed')]
             # Save the combined DataFrame to a single Excel file
             result_df.to_excel(file_path, index=False)
             apply_fill_colors(file_path)

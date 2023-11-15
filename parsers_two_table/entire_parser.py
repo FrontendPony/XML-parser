@@ -5,17 +5,7 @@ from sqlalchemy import create_engine
 from dbsettings import database_parametres
 import psycopg2
 import re
-from find_similar_fullnames import find_similar_fullnames
-from PyQt6.QtWidgets import QApplication, QDialog
-from interface import Ui_Dialog2
 
-def show_dialog():
-    app = QApplication([])  # Create a QApplication if not already created
-    dialog = QDialog()
-    ui = Ui_Dialog2()
-    ui.setupUi(dialog)
-    dialog.show()
-    app.exec()
 def extract_numbers_from_string(input_string):
     pattern = r'\d+'
     number = re.findall(pattern, input_string)
@@ -335,6 +325,7 @@ def parse_articles_to_excel(xml_filename):
     authors_organisations = pd.DataFrame(author_organisation,
                                          columns=['counter', 'author_id', 'author_name', 'author_initials', 'org_id', 'org_name'])
     authors_organisations['author_fullname'] = authors_organisations['author_name'] + ' ' + authors_organisations['author_initials']
+    authors_organisations['additional_author_id'] = None
     authors_organisations.to_excel('authors_organisations.xlsx', index=False)
     authors_organisations.to_excel('authors_organisations_initial.xlsx', index=False)
     article.to_excel("article.xlsx", index=False)
@@ -389,6 +380,7 @@ def parse_articles_to_excel(xml_filename):
 
     # Save the Excel file for org_filtered_data 
     org_writer._save()
+
 
 
 if __name__ == "__main__":

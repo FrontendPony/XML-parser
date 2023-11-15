@@ -49,6 +49,12 @@ class Ui_Dialog2(object):
         self.pushButton_28 = QtWidgets.QPushButton(parent=Dialog)
         self.pushButton_28.setObjectName("pushButton_28")
         self.verticalLayout.addWidget(self.pushButton_28)
+        self.pushButton_38 = QtWidgets.QPushButton(parent=Dialog)
+        self.pushButton_38.setObjectName("pushButton_38")
+        self.verticalLayout.addWidget(self.pushButton_38)
+        self.pushButton_48 = QtWidgets.QPushButton(parent=Dialog)
+        self.pushButton_48.setObjectName("pushButton_48")
+        self.verticalLayout.addWidget(self.pushButton_48)
 
         self.retranslateUi(Dialog)
         QtCore.QMetaObject.connectSlotsByName(Dialog)
@@ -56,10 +62,12 @@ class Ui_Dialog2(object):
     def retranslateUi(self, Dialog):
         _translate = QtCore.QCoreApplication.translate
         Dialog.setWindowTitle(_translate("Dialog", "Dialog"))
-        self.label_222.setText(_translate("Dialog", "<strong>Данные из Excel</strong>"))
-        self.label_228.setText(_translate("Dialog", "<strong>Данные из БД</strong>"))
-        self.pushButton.setText(_translate("Dialog", "Один человек"))
-        self.pushButton_28.setText(_translate("Dialog", "Разные люди"))
+        #self.label_222.setText(_translate("Dialog", "<strong>Данные из Excel</strong>"))
+        #self.label_228.setText(_translate("Dialog", "<strong>Данные из БД</strong>"))
+        self.pushButton.setText(_translate("Dialog", "Оставить верхний вариант"))
+        self.pushButton_28.setText(_translate("Dialog", "Оставить нижний вариант"))
+        self.pushButton_38.setText(_translate("Dialog", "Оставить обоих людей"))
+        self.pushButton_48.setText(_translate("Dialog", "Добавить дополнительный ID автору"))
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
         Dialog.setObjectName("Dialog")

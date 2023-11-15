@@ -1,6 +1,4 @@
 import sys
-
-import sqlalchemy
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QMainWindow, QApplication, QPushButton,QFileDialog,QMessageBox
 import pandas as pd
@@ -19,16 +17,24 @@ from parsers_two_table.findOrganisationsWithoutID import update_org_id
 from find_duplicates import deduplicate_excel
 from interface import Ui_Dialog2
 from find_new_elibrary_id import update_elibrary_id
-
+from change_name_to_reference import update_df1_with_df2
+from delete_duplicate_and_update import leave_person_from_lower_row
+from add_additional_author_id import update_additional_author_id
+from fill_new_reference_id import update_rinc_ids
 
 class MyDialog(QtWidgets.QDialog):
     def __init__(self, data_1):
         super(MyDialog, self).__init__()
         self.ui = Ui_Dialog2()
         self.ui.setupUi(self)
+        self.data_list_to_add_id = []
+        self.data_list_to_delete_reverse = []
+        self.data_list_to_update = []
         self.fillDialogTables(data_1)
-        self.ui.pushButton.clicked.connect(lambda: self.fill_upper_table(data_1))
-        self.ui.pushButton_28.clicked.connect(lambda: self.fill_lower_table(data_1))
+        self.ui.pushButton.clicked.connect(lambda: self.lowerTableSelected(data_1))
+        self.ui.pushButton_28.clicked.connect(lambda: self.upperRowSelected(data_1))
+        self.ui.pushButton_38.clicked.connect(lambda: self.keepBothSelected(data_1))
+        self.ui.pushButton_48.clicked.connect(lambda: self.addAdditionalSelected(data_1))
 
     def fillDialogTables(self, data_1):
         self.ui.tableWidget_44.clearContents()
@@ -41,48 +47,82 @@ class MyDialog(QtWidgets.QDialog):
             for j in range(4, 8):
                 item = QtWidgets.QTableWidgetItem(str(data_1[i][j]))
                 self.ui.tableWidget_44.setItem(i, j - 4, item)
-    def fill_upper_table(self, data_1):
+    def upperRowSelected(self, data_1):
         try:
-            conn = psycopg2.connect(database=database_parametres['dbname'],
-                                    user=database_parametres['user'],
-                                    password=database_parametres['password'],
-                                    host=database_parametres['host'],
-                                    port=database_parametres['port'])
-            cursor = conn.cursor()
-            data_list = []
-            data2_list = []
-            num_columns = self.ui.tableWidget_44.columnCount()
             row_index = 0
-            for col_index in range(num_columns):
-                item = self.ui.tableWidget_44.item(row_index, col_index)
-                item_2 = self.ui.tableWidget_228.item(row_index, col_index)
-                if item is not None:
-                    data = item.text()
-                    data_list.append(data)
-                    data2 = item_2.text()
-                    data2_list.append(data2)
-            print(data_list)
-            update_query = f"UPDATE authors_organisations SET counter= %s, author_id =%s, author_name = %s, author_initials = %s WHERE counter = %s"
-            cursor.execute(update_query, (data_list[0], data_list[1], data_list[2], data_list[3], data2_list[0]))
-            conn.commit()
+            col_index = 1
+            item_44 = self.ui.tableWidget_44.item(row_index, col_index)
+            item_228 = self.ui.tableWidget_228.item(row_index, col_index)
+            if item_44 is not None and item_228 is not None:
+                data_44 = item_44.text()
+                data_228 = item_228.text()
+                if [data_44, data_228] not in self.data_list_to_update:
+                    self.data_list_to_update.append([data_44, data_228])
             data_1.pop(0)
             if len(data_1) > 0:
                 self.fillDialogTables(data_1)
             else:
+                print(self.data_list_to_update)
+                leave_person_from_lower_row('merged_ao.xlsx', self.data_list_to_update)
+                update_additional_author_id('merged_ao.xlsx', self.data_list_to_add_id)
                 self.close()
         except Exception as e:
             print(f"An error occurred: {e}")
 
-    def fill_lower_table(self, data_1):
+    def lowerTableSelected(self, data_1):
+        try:
+            row_index = 0
+            col_index = 1
+            item_44 = self.ui.tableWidget_44.item(row_index, col_index)
+            item_228 = self.ui.tableWidget_228.item(row_index, col_index)
+            if item_44 is not None and item_228 is not None:
+                data_44 = item_44.text()
+                data_228 = item_228.text()
+                if [data_44, data_228] not in self.data_list_to_update:
+                    self.data_list_to_update.append([data_228, data_44])
+            data_1.pop(0)
+            if len(data_1) > 0:
+                self.fillDialogTables(data_1)
+            else:
+                print(self.data_list_to_update)
+                leave_person_from_lower_row('merged_ao.xlsx', self.data_list_to_update)
+                update_additional_author_id('merged_ao.xlsx', self.data_list_to_add_id)
+                self.close()
+        except Exception as e:
+            print(f"An error occurred: {e}")
+    def keepBothSelected(self, data_1):
         try:
             data_1.pop(0)
             if len(data_1) > 0:
                 self.fillDialogTables(data_1)
             else:
+                print(self.data_list_to_update)
+                leave_person_from_lower_row('merged_ao.xlsx', self.data_list_to_update)
+                update_additional_author_id('merged_ao.xlsx', self.data_list_to_add_id)
                 self.close()
-                sys.exit()
         except Exception as e:
             # Handle the exception here
+            print(f"An error occurred: {e}")
+    def addAdditionalSelected(self, data_1):
+        try:
+            row_index = 0
+            col_index = 1
+            item_44 = self.ui.tableWidget_44.item(row_index, col_index)
+            item_228 = self.ui.tableWidget_228.item(row_index, col_index)
+            if item_44 is not None and item_228 is not None:
+                data_44 = item_44.text()
+                data_228 = item_228.text()
+                if [data_44, data_228] not in self.data_list_to_add_id:
+                    self.data_list_to_add_id.append([data_44, data_228])
+            data_1.pop(0)
+            if len(data_1) > 0:
+                self.fillDialogTables(data_1)
+            else:
+                print(self.data_list_to_update)
+                leave_person_from_lower_row('merged_ao.xlsx', self.data_list_to_update)
+                update_additional_author_id('merged_ao.xlsx', self.data_list_to_add_id)
+                self.close()
+        except Exception as e:
             print(f"An error occurred: {e}")
 class Dialog(QtWidgets.QDialog):
     def __init__(self, data_1, data_2, index_array_1, index_array_2):
@@ -683,11 +723,17 @@ class MainWindow(QMainWindow):
                 merged_data = merged_data.drop_duplicates()
                 merged_data.to_excel('merged_ao.xlsx')
                 deduplicate_excel('merged_ao.xlsx')
+                # data = update_elibrary_id('merged_ao.xlsx')
+                # self.showDialog_2(data)
+                # deduplicate_excel('merged_ao.xlsx')
                 merged_data_filtered = pd.read_excel('merged_ao.xlsx')
+                merged_data_filtered = merged_data_filtered.loc[:, ~merged_data_filtered.columns.str.contains('^Unnamed')]
                 merged_data_filtered.to_sql(table_name, engine, if_exists='replace', index=False)
+                # update_rinc_ids('merged_ao.xlsx', 'authors_ref.xlsx', sheet_name='РИНЦ ID')
             elif table_name == 'article_authors_linkage':
                 merged_data = pd.concat([data_frame, existing_data])
                 merged_data = merged_data.drop_duplicates()
+                merged_data = merged_data.loc[:, ~merged_data.columns.str.contains('^Unnamed')]
                 merged_data.to_excel('merged_link.xlsx')
                 merged_data.to_sql(table_name, engine, if_exists='replace', index=False)
         except Exception as e:
@@ -700,12 +746,11 @@ class MainWindow(QMainWindow):
         if fname[0]:
             parse_articles_to_excel(fname[0])
             self.ui.progressBar.setValue(10)
-            data = update_elibrary_id('authors_organisations_initial.xlsx')
-            self.showDialog_2(data)
             self.ui.progressBar.setValue(20)
             self.ui.progressBar.setValue(30)
             update_org_id('authors_organisations.xlsx')
             update_author_id('authors_organisations.xlsx')
+            update_df1_with_df2('authors_organisations.xlsx', 'authors_ref.xlsx')
             deduplicate_excel('authors_organisations.xlsx')
             self.ui.progressBar.setValue(40)
             self.ui.progressBar.setValue(50)
@@ -725,7 +770,8 @@ class MainWindow(QMainWindow):
         query = """
                         SELECT item_id, author_name, linkurl, genre, type, journal_title,publisher, title_article
                         FROM article
-                        JOIN authors_organisations USING(counter)
+                        JOIN article_authors_linkage USING(item_id)
+		                JOIN authors_organisations USING(counter)
                         WHERE year = '{year}' AND author_name = '{lastname}'
                         """
 
@@ -865,32 +911,28 @@ class MainWindow(QMainWindow):
             elif (selected_year_from != 'None' and selected_year_to == 'None' and text == ''):
              specify_where_basic.append(f" subquery.year = {selected_year_from}")
             elif (selected_year_from != 'None' and selected_year_to != 'None' and text == ''):
-             specify_where_basic.append(f" year BETWEEN {selected_year_from}  AND  {selected_year_to} ")
+             specify_where_basic.append(f" year BETWEEN {selected_year_from}  AND  {selected_year_to}")
             elif selected_year_from == 'None' and selected_year_to == 'None' and text != '':
-                specify_where_advanced.append(f" author_id IN (SELECT  author_id FROM authors_organisations WHERE  author_name || ' ' || author_initials = '{text} ')")
+                specify_where_advanced.append(f" author_id IN (SELECT  author_id FROM authors_organisations WHERE  author_name || ' ' || author_initials = '{text}')")
             elif (selected_year_from != 'None' and selected_year_to != 'None' and text != ''):
-             specify_where_advanced.append(f" year BETWEEN {selected_year_from} AND {selected_year_to} AND author_id IN (SELECT author_id FROM authors_organisations WHERE author_name || ' ' || author_initials = '{text} ')")
+             specify_where_advanced.append(f" year BETWEEN {selected_year_from} AND {selected_year_to} AND author_id IN (SELECT author_id FROM authors_organisations WHERE author_name || ' ' || author_initials = '{text}')")
             elif (selected_year_from != 'None' and selected_year_to == 'None' and text != ''):
-             specify_where_advanced.append(f" year = {selected_year_from} AND author_id IN (SELECT  author_id FROM authors_organisations WHERE  author_name || ' ' || author_initials = '{text} ')")
+             specify_where_advanced.append(f" year = {selected_year_from} AND author_id IN (SELECT  author_id FROM authors_organisations WHERE  author_name || ' ' || author_initials = '{text}')")
         if len(specify_where_basic) > 0 or (len(specify_where_basic) == 0 and len(specify_where_advanced) == 0 ):
-            print(specify_where_basic)
             self.process_data(specify_where_basic)
         else:
             self.process_data_advanced(specify_where_advanced)
-            print(specify_where_advanced)
 
     def addOneRowToDB(self):
         for row in range(self.ui.tableWidget_add_row.rowCount()):
             row_data = []
             for column in range(self.ui.tableWidget_add_row.columnCount()):
                 item = self.ui.tableWidget_add_row.item(row, column)
-                print(item)
                 if item is not None:
                     cell_data = item.text()
                     row_data.append(cell_data)
                 else:
                     row_data.append("NULL")
-            print(row_data)
             self.insertNewRowInWholeTable(row_data)
             QMessageBox.information(self, "Успешно", "Строка была добавлена в базу данных!")
 
@@ -901,7 +943,6 @@ class MainWindow(QMainWindow):
                 year, number, contnumber, volume, page_begin, page_end, language, title_article, doi, edn, grnti, risc, corerisc, counter) 
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
             """
-            print(len(row_1))
             conn = psycopg2.connect(database=database_parametres['dbname'],
                                     user=database_parametres['user'],
                                     password=database_parametres['password'],
