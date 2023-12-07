@@ -1,6 +1,7 @@
 import pandas as pd
 import re
 from apply_colours_to_excel import apply_fill_colors
+from find_ru_en_equivalents import process_excel_file
 
 def format_name(name):
     match = re.match(r"(([А-Яа-я]+) ([А-Яа-я]+) ([А-Яа-я]+))", name)
@@ -18,18 +19,17 @@ def find_similar_fullnames(file_path):
             author_fullnames = df['author_fullname'].tolist()
             formatted_data = [format_name(name) for name in author_fullnames]
             df['formatted_author_name'] = formatted_data
+            df.to_excel('author_filtered_data.xlsx')
+            process_excel_file('author_filtered_data.xlsx')
+            df = pd.read_excel('author_filtered_data.xlsx')
             grouped = df.groupby('formatted_author_name')
-            # Create a list to store DataFrames for each group
             group_dfs = []
 
-            # Iterate through the groups
             for name, group in grouped:
                 group_dfs.append(group)
 
-            # Concatenate all group DataFrames into one DataFrame
             result_df = pd.concat(group_dfs)
             result_df = result_df.loc[:, ~result_df.columns.str.contains('^Unnamed')]
-            # Save the combined DataFrame to a single Excel file
             result_df.to_excel(file_path, index=False)
             apply_fill_colors(file_path)
     except Exception as e:

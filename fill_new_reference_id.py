@@ -18,6 +18,7 @@ def update_rinc_ids(authors_organisations_file, authors_ref_file, sheet_name='Р
                 matching_row = df1[df1['author_fullname'] == author_fullname_concat]
                 df2.at[index, 'РИНЦ ID'] = matching_row['author_id'].values[0]
 
+    df2 = df2.loc[:, ~df2.columns.str.contains('^Unnamed')]
     df2.to_excel(authors_ref_file, sheet_name=sheet_name)
 
 

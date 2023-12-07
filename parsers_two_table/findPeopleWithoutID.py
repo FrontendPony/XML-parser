@@ -84,7 +84,7 @@ def update_author_id(excel_file_path):
         df_null['alternative_name'] = df_null['possible_id_from_db'].map(
             df_alternative.set_index('enter_id')['new_column_name'])
         df_null.to_excel('author_filtered_data.xlsx')
-    process_excel_file('author_filtered_data.xlsx')
+
     def add_reference_id(df_reference, df2):
         reference_id = []
 
@@ -106,7 +106,6 @@ def update_author_id(excel_file_path):
     df_null = pd.read_excel('author_filtered_data.xlsx', index_col=0)
     df_null['enter_id'] = df_null.apply(fill_enter_id, axis=1)
     df_null.to_excel('author_filtered_data.xlsx')
-
 
 
     find_similar_fullnames('author_filtered_data.xlsx')

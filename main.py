@@ -21,6 +21,14 @@ from change_name_to_reference import update_df1_with_df2
 from delete_duplicate_and_update import leave_person_from_lower_row
 from add_additional_author_id import update_additional_author_id
 from fill_new_reference_id import update_rinc_ids
+from fill_excel_with_data import fill_excel_with_data
+from add_url_to_person_article import add_url_to_person_article
+from add_dropdown_with_ids_to_excel import add_dropdown_with_ids_to_excel
+from update_author_id_on_choice import update_author_id_on_choice
+from open_excel import run_excel
+from combine_people import combine_people
+from merge_similar import merge_similar
+from psycopg2 import Error
 
 class MyDialog(QtWidgets.QDialog):
     def __init__(self, data_1):
@@ -196,13 +204,13 @@ class MainWindow(QMainWindow):
         self.import_button_onlyiconwidget = self.findChild(QPushButton, "import_button_onlyiconwidget")
         self.import_button_onlyiconwidget.clicked.connect(self.importButtonClickHandler)
         self.export_button = self.findChild(QPushButton, "pushButton")
-        self.export_button.clicked.connect(self.getYearAndSurname)
+        self.export_button.clicked.connect(lambda: self.getYearAndSurname(False))
         self.import_button_expandedwidget = self.findChild(QPushButton, "import_button_expandedwidget")
         self.import_button_expandedwidget.clicked.connect(self.importButtonClickHandler)
         self.search_button = self.findChild(QPushButton, "Primary")
         self.search_button.clicked.connect(self.get_text)
         self.preview_button = self.findChild(QPushButton, "Primary_3")
-        self.preview_button.clicked.connect(self.getYearAndSurname)
+        self.preview_button.clicked.connect(lambda: self.getYearAndSurname(True))
         # self.search_button = self.findChild(QPushButton, "general_data_export_button")
         # self.search_button.clicked.connect(self.get_test_auf)
         self.user_button = self.findChild(QPushButton, "user_button")
@@ -215,7 +223,9 @@ class MainWindow(QMainWindow):
         self.full_search_button_2.clicked.connect(lambda: self.search(self.ui.tableWidget_article_author, self.ui.textEdit_3, self.next_result_button_2, self.previous_result_button_2, self.ui.handleItemChanged_2))
         self.full_search_button_3 = self.findChild(QPushButton, "pushButton_10")
         self.full_search_button_3.clicked.connect(lambda: self.search(self.ui.tableWidget_authors, self.ui.textEdit_4, self.next_result_button_3, self.previous_result_button_3, self.ui.handleItemChanged_3))
-
+        self.ui.pushButton_99.clicked.connect(lambda: self.dataLoadFromDB(self.ui.tableWidget_authors, 'SELECT * FROM authors_organisations ORDER BY counter', self.ui.handleItemChanged_3))
+        self.ui.pushButton_98.clicked.connect(lambda: self.dataLoadFromDB(self.ui.tableWidget_article_author,'SELECT * FROM article_authors_linkage ORDER BY item_id, counter',self.ui.handleItemChanged_2))
+        self.ui.pushButton_97.clicked.connect(lambda: self.dataLoadFromDB(self.ui.tableWidget_article_2, 'SELECT * FROM article ORDER BY item_id',self.ui.handleItemChanged))
         self.next_result_button = self.findChild(QPushButton, "pushButton_4")
         self.next_result_button.clicked.connect(lambda: self.scroll_to_next_result(self.ui.tableWidget_article_2, self.ui.handleItemChanged))
         self.next_result_button.setEnabled(False)
@@ -233,12 +243,12 @@ class MainWindow(QMainWindow):
             lambda: self.scroll_to_previous_result(self.ui.tableWidget_article_author, self.ui.handleItemChanged_2))
         self.previous_result_button_2.setEnabled(False)
 
-        self.next_result_button_3 = self.findChild(QPushButton, "pushButton_11")
+        self.next_result_button_3 = self.findChild(QPushButton, "pushButton_12")
         self.next_result_button_3.clicked.connect(
             lambda: self.scroll_to_next_result(self.ui.tableWidget_authors, self.ui.handleItemChanged_3))
         self.next_result_button_3.setEnabled(False)
 
-        self.previous_result_button_3 = self.findChild(QPushButton, "pushButton_12")
+        self.previous_result_button_3 = self.findChild(QPushButton, "pushButton_11")
         self.previous_result_button_3.clicked.connect(
             lambda: self.scroll_to_previous_result(self.ui.tableWidget_authors, self.ui.handleItemChanged_3))
         self.previous_result_button_3.setEnabled(False)
@@ -259,6 +269,29 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"An error occurred: {str(e)}")
 
+    def dataLoadFromDB(self, tableWidget, query, handleItemChanged):
+        print(223)
+        if self.signal_connected:
+            tableWidget.itemChanged.disconnect(handleItemChanged)
+            self.signal_connected = False
+        conn = psycopg2.connect(database=database_parametres['dbname'],
+                                user=database_parametres['user'],
+                                password=database_parametres['password'],
+                                host=database_parametres['host'],
+                                port=database_parametres['port'])
+        cur = conn.cursor()
+        cur.execute(query)
+        result = cur.fetchall()
+
+        for row_number, row_data in enumerate(result):
+            tableWidget.insertRow(row_number)
+            for column_number, data in enumerate(row_data):
+                tableWidget.setItem(row_number, column_number, QtWidgets.QTableWidgetItem(str(data)))
+        cur.close()
+        conn.close()
+        if not self.signal_connected:
+            tableWidget.itemChanged.connect(handleItemChanged)
+            self.signal_connected = True
     # def deleteRowOnChoice(self, data_2):
     #     item_id = data_2[0][0]
     #     author_id = data_2[0][1]
@@ -473,6 +506,68 @@ class MainWindow(QMainWindow):
             except:
                 pass
 
+    def excel_file_preview(self, where):
+        try:
+            connection = psycopg2.connect(
+                dbname=database_parametres['dbname'],
+                user=database_parametres['user'],
+                password=database_parametres['password'],
+                host=database_parametres['host'],
+                port=database_parametres['port']
+            )
+
+            cursor = connection.cursor()
+            self.ui.tableWidget_2.clearContents()
+
+            sql_query = """
+                     with cte as (SELECT 
+        			linkurl, count(DISTINCT author_id) as author_count
+        			FROM
+                    article 
+        			JOIN
+        			article_authors_linkage USING(item_id)
+        			JOIN 
+        			authors_organisations USING(counter)
+        			GROUP BY linkurl)
+                    SELECT * FROM (SELECT 
+        			article.linkurl,
+                    article.doi,
+                    article.year,
+                    article.title_article,
+                    article.publisher,
+                   	article.type,
+                    article.risc,
+                    article.issn,
+                    article.edn,
+                    authors_organisations.author_id,
+        			authors_organisations.author_name,
+        			authors_organisations.author_initials,
+                    authors_organisations.org_id,
+                    authors_organisations.org_name,
+        			cte.author_count,
+        			COUNT(author_id) over affilations_cnt as affilations_count
+                FROM
+                    article 
+        		JOIN
+        			article_authors_linkage USING(item_id)
+        		JOIN 
+        			authors_organisations USING(counter)
+        		JOIN
+        			cte USING(linkurl)
+        		window affilations_cnt as (partition by linkurl, author_id)) AS subquery
+        		WHERE {0}
+                    """.format(where[0])
+
+            cursor.execute(sql_query)
+            result = cursor.fetchall()
+            for row_number, row_data in enumerate(result):
+                self.ui.tableWidget_2.insertRow(row_number)
+                for column_number, data in enumerate(row_data):
+                    self.ui.tableWidget_2.setItem(row_number, column_number, QtWidgets.QTableWidgetItem(str(data)))
+            cursor.close()
+            connection.close()
+        except Exception as e:
+            print(f"An error occurred: {str(e)}")
     def process_data_advanced(self, where):
             try:
                 connection = psycopg2.connect(
@@ -634,6 +729,7 @@ class MainWindow(QMainWindow):
         """
 
 
+
     def import_xlsx_to_postgresql2(self, database_params, xlsx_file_path, table_name, index_col):
         try:
             data_from_sql = []
@@ -670,7 +766,8 @@ class MainWindow(QMainWindow):
             if table_name == 'authors_organisations':
                 if "Unnamed: 0" in data_frame.columns:
                     data_frame = data_frame.drop("Unnamed: 0", axis=1)
-                data_frame.drop("author_fullname", axis=1, inplace=True)
+                if 'author_fullname' in data_frame.columns:
+                    data_frame.drop("author_fullname", axis=1, inplace=True)
             if table_name == 'article':
                 for column in float_columns:
                     data_frame[column] = data_frame[column].apply(lambda x: replace_float_with_null(x))
@@ -723,19 +820,34 @@ class MainWindow(QMainWindow):
                 merged_data = merged_data.drop_duplicates()
                 merged_data.to_excel('merged_ao.xlsx')
                 deduplicate_excel('merged_ao.xlsx')
-                # data = update_elibrary_id('merged_ao.xlsx')
-                # self.showDialog_2(data)
-                # deduplicate_excel('merged_ao.xlsx')
+                data = update_elibrary_id('merged_ao.xlsx')
+                data = merge_similar(data)
+                data = combine_people(data)
+                fill_excel_with_data(data, 'possible_duplicate_people.xlsx')
+                add_url_to_person_article('possible_duplicate_people.xlsx', 'merged_link.xlsx', 'merged.xlsx')
+                add_dropdown_with_ids_to_excel(data, 'possible_duplicate_people.xlsx')
+                run_excel()
+                update_author_id_on_choice('possible_duplicate_people.xlsx','merged_ao.xlsx', 'merged_ao.xlsx')
+                deduplicate_excel('merged_ao.xlsx')
                 merged_data_filtered = pd.read_excel('merged_ao.xlsx')
                 merged_data_filtered = merged_data_filtered.loc[:, ~merged_data_filtered.columns.str.contains('^Unnamed')]
-                merged_data_filtered.to_sql(table_name, engine, if_exists='replace', index=False)
-                # update_rinc_ids('merged_ao.xlsx', 'authors_ref.xlsx', sheet_name='РИНЦ ID')
+                merged_data_filtered.to_sql('authors_organisations', engine, if_exists='replace', index=False)
+                link_filtered = pd.read_excel('merged_link.xlsx')
+                link_filtered = link_filtered.loc[:, ~link_filtered.columns.str.contains('^Unnamed')]
+                link_filtered.drop_duplicates(inplace=True)
+                link_filtered.to_excel('merged_link.xlsx')
+                link_filtered.to_sql('article_authors_linkage', engine, if_exists='replace', index=False)
             elif table_name == 'article_authors_linkage':
                 merged_data = pd.concat([data_frame, existing_data])
-                merged_data = merged_data.drop_duplicates()
                 merged_data = merged_data.loc[:, ~merged_data.columns.str.contains('^Unnamed')]
+                merged_data.drop_duplicates(inplace=True)
                 merged_data.to_excel('merged_link.xlsx')
+            elif table_name == 'alternative_author_ids':
+                merged_data = pd.concat([data_frame, existing_data])
+                merged_data = merged_data.loc[:, ~merged_data.columns.str.contains('^Unnamed')]
+                merged_data.drop_duplicates(inplace=True)
                 merged_data.to_sql(table_name, engine, if_exists='replace', index=False)
+                merged_data.to_excel('alternative_ids_merged.xlsx')
         except Exception as e:
             print(f"An error occurred: {e}")
         finally:
@@ -751,47 +863,54 @@ class MainWindow(QMainWindow):
             update_org_id('authors_organisations.xlsx')
             update_author_id('authors_organisations.xlsx')
             update_df1_with_df2('authors_organisations.xlsx', 'authors_ref.xlsx')
-            deduplicate_excel('authors_organisations.xlsx')
+            update_rinc_ids('authors_organisations.xlsx', 'authors_ref.xlsx', sheet_name='РИНЦ ID')
             self.ui.progressBar.setValue(40)
             self.ui.progressBar.setValue(50)
+            self.import_xlsx_to_postgresql2(database_parametres, 'article.xlsx', 'article', None)
+            self.import_xlsx_to_postgresql2(database_parametres, 'article_authors_linkage.xlsx','article_authors_linkage', None)
             self.import_xlsx_to_postgresql2(database_parametres, 'authors_organisations.xlsx', 'authors_organisations', False)
             self.ui.progressBar.setValue(60)
             self.ui.progressBar.setValue(70)
+            self.import_xlsx_to_postgresql2(database_parametres, 'alternative_ids.xlsx', 'alternative_author_ids', None)
             self.ui.progressBar.setValue(80)
             self.ui.progressBar.setValue(90)
-            self.import_xlsx_to_postgresql2(database_parametres, 'article.xlsx', 'article', None)
-            self.import_xlsx_to_postgresql2(database_parametres, 'article_authors_linkage.xlsx', 'article_authors_linkage', None)
             self.ui.progressBar.setValue(100)
             QMessageBox.information(self, "Успешный импорт", "Данные были перенесены в Базу Данных!")
         else:
             print("Выбор файла отменен. Файл не был перемещен.")
 
-    def searchButtonDBConnector(self, year, lastname):
-        query = """
-                        SELECT item_id, author_name, linkurl, genre, type, journal_title,publisher, title_article
-                        FROM article
-                        JOIN article_authors_linkage USING(item_id)
-		                JOIN authors_organisations USING(counter)
-                        WHERE year = '{year}' AND author_name = '{lastname}'
-                        """
+    def searchButtonDBConnector(self, where):
+        try:
+            query = """
+                                        SELECT item_id, author_name, linkurl, genre, type, journal_title,publisher, title_article
+                                        FROM article
+                                        JOIN article_authors_linkage USING(item_id)
+                		                JOIN authors_organisations USING(counter)
+                                        WHERE {0}
+                                        """.format(where[0])
 
-        query = query.format(year=year, lastname=lastname)
-        conn = psycopg2.connect(database=database_parametres['dbname'],
-                                user=database_parametres['user'],
-                                password=database_parametres['password'],
-                                host=database_parametres['host'],
-                                port=database_parametres['port'])
-        cur = conn.cursor()
-        cur.execute(query)
-        result = cur.fetchall()
-        self.ui.tableWidget.setRowCount(0)
+            conn = psycopg2.connect(database=database_parametres['dbname'],
+                                    user=database_parametres['user'],
+                                    password=database_parametres['password'],
+                                    host=database_parametres['host'],
+                                    port=database_parametres['port'])
+            cur = conn.cursor()
+            cur.execute(query)
+            result = cur.fetchall()
+            self.ui.tableWidget.clearContents()
 
-        for row_number, row_data in enumerate(result):
-            self.ui.tableWidget.insertRow(row_number)
-            for column_number, data in enumerate(row_data):
-             self.ui.tableWidget.setItem(row_number, column_number, QtWidgets.QTableWidgetItem(str(data)))
-        cur.close()
-        conn.close()
+            for row_number, row_data in enumerate(result):
+                self.ui.tableWidget.insertRow(row_number)
+                for column_number, data in enumerate(row_data):
+                    self.ui.tableWidget.setItem(row_number, column_number, QtWidgets.QTableWidgetItem(str(data)))
+            cur.close()
+            conn.close()
+
+        except Error as e:
+            # Catching specific error
+            # Handle the exception here
+            print(f"Error: {e}")
+            # You can add more specific error handling or logging here if needed
 
     def userChoicePatternFetchFromDB(self,columns):
         query = """
@@ -892,11 +1011,24 @@ class MainWindow(QMainWindow):
         self.userChoicePatternFetchFromDB(result)
 
     def get_text(self):
+        where = []
         text = self.ui.textEdit.toPlainText().strip()
         selected_text = self.ui.comboBox.currentText()
-        self.searchButtonDBConnector(selected_text, text)
+        if text == '' and selected_text == 'None':
+            pass
+        elif (selected_text != 'None' and text == ''):
+            where.append(f" year = {selected_text}")
+        elif (selected_text == 'None' and text != ''):
+            where.append(f" author_name = '{text}'")
+        elif (selected_text != 'None' and text != ''):
+            where.append(f"year = {selected_text} and author_name = '{text}'")
+        if len(where) > 0:
+            self.searchButtonDBConnector(where)
+        else:
+            QMessageBox.information(self, "Information", "Заполните хотя бы один столбец")
 
-    def getYearAndSurname(self):
+
+    def getYearAndSurname(self, preview):
         specify_where_basic = []
         specify_where_advanced = []
         text = self.ui.textEdit_2.text()
@@ -919,9 +1051,15 @@ class MainWindow(QMainWindow):
             elif (selected_year_from != 'None' and selected_year_to == 'None' and text != ''):
              specify_where_advanced.append(f" year = {selected_year_from} AND author_id IN (SELECT  author_id FROM authors_organisations WHERE  author_name || ' ' || author_initials = '{text}')")
         if len(specify_where_basic) > 0 or (len(specify_where_basic) == 0 and len(specify_where_advanced) == 0 ):
-            self.process_data(specify_where_basic)
+            if preview:
+                self.excel_file_preview(specify_where_basic)
+            else:
+                self.process_data(specify_where_basic)
         else:
-            self.process_data_advanced(specify_where_advanced)
+            if preview:
+                self.excel_file_preview(specify_where_advanced)
+            else:
+                self.process_data(specify_where_advanced)
 
     def addOneRowToDB(self):
         for row in range(self.ui.tableWidget_add_row.rowCount()):

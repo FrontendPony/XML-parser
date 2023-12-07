@@ -1,12 +1,13 @@
 import pandas as pd
 
-def delete_rows_in_excel(excel_file_path, rows_to_delete):
-    try:
-        df = pd.read_excel(excel_file_path)
-        df = df[~df['counter'].isin(rows_to_delete)]
-        df.to_excel(excel_file_path, index=False, engine='openpyxl')
-        print("Rows with specified counter values deleted successfully.")
-    except Exception as e:
-        print(f"An error occurred: {e}")
+def update_counter_column(file_path, new_values):
+    df = pd.read_excel(file_path)
+
+    for idx, val in enumerate(new_values):
+        df.loc[df['counter'] == val[1], 'counter'] = val[0]
+
+    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+
+    df.to_excel(file_path, index=False)
 
 

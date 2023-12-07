@@ -377,6 +377,29 @@ class Ui_MainWindow(object):
                                         "}")
         self.pushButton_3.setObjectName("pushButton_3")
         self.pushButton_3.setText("Поиск")
+        self.pushButton_97 = QtWidgets.QPushButton(parent=self.page_2)
+        self.pushButton_97.setGeometry(QtCore.QRect(830, 0, 131, 31))
+        self.pushButton_97.setStyleSheet("QPushButton {\n"
+"    font-size: 12pt;\n"
+"    color: white;\n"
+"    font-weight: bold;\n"
+"    border-radius: 8px;\n"
+"}\n"
+"\n"
+"#pushButton_97 {\n"
+"\n"
+"    background-color:#eedd66;\n"
+"}\n"
+"\n"
+"#pushButton_97:hover {\n"
+"    background-color: #eedd66f;\n"
+"}\n"
+"\n"
+"#pushButton_97:pressed {\n"
+"    border: 4px solid #98c1fe;\n"
+"}")
+        self.pushButton_97.setObjectName("pushButton_97")
+        self.pushButton_97.setText("Обновить")
         self.textEdit_22 = QtWidgets.QTextEdit(parent=self.page_2)
         self.textEdit_22.setGeometry(QtCore.QRect(10, 0, 191, 31))
         self.textEdit_22.setStyleSheet("QTextEdit {\n"
@@ -738,6 +761,29 @@ class Ui_MainWindow(object):
                                         "}")
         self.pushButton_7.setObjectName("pushButton_7")
         self.pushButton_7.setText("Поиск")
+        self.pushButton_98 = QtWidgets.QPushButton(parent=self.page_3)
+        self.pushButton_98.setGeometry(QtCore.QRect(830, 20, 131, 31))
+        self.pushButton_98.setStyleSheet("QPushButton {\n"
+"    font-size: 12pt;\n"
+"    color: white;\n"
+"    font-weight: bold;\n"
+"    border-radius: 8px;\n"
+"}\n"
+"\n"
+"#pushButton_98 {\n"
+"\n"
+"    background-color:#eedd66;\n"
+"}\n"
+"\n"
+"#pushButton_98:hover {\n"
+"    background-color: #eedd66f;\n"
+"}\n"
+"\n"
+"#pushButton_98:pressed {\n"
+"    border: 4px solid #98c1fe;\n"
+"}")
+        self.pushButton_98.setObjectName("pushButton_98")
+        self.pushButton_98.setText("Обновить")
         self.textEdit_3 = QtWidgets.QTextEdit(parent=self.page_3)
         self.textEdit_3.setGeometry(QtCore.QRect(10, 0, 211, 31))
         self.textEdit_3.setStyleSheet("QTextEdit {\n"
@@ -803,6 +849,29 @@ class Ui_MainWindow(object):
                                         "}")
         self.pushButton_10.setObjectName("pushButton_10")
         self.pushButton_10.setText("Поиск")
+        self.pushButton_99 = QtWidgets.QPushButton(parent=self.page_4)
+        self.pushButton_99.setGeometry(QtCore.QRect(830, 20, 131, 31))
+        self.pushButton_99.setStyleSheet("QPushButton {\n"
+"    font-size: 12pt;\n"
+"    color: white;\n"
+"    font-weight: bold;\n"
+"    border-radius: 8px;\n"
+"}\n"
+"\n"
+"#pushButton_99 {\n"
+"\n"
+"    background-color:#eedd66;\n"
+"}\n"
+"\n"
+"#pushButton_99:hover {\n"
+"    background-color: #eedd66f;\n"
+"}\n"
+"\n"
+"#Primary:pressed {\n"
+"    border: 4px solid #98c1fe;\n"
+"}")
+        self.pushButton_99.setObjectName("pushButton_99")
+        self.pushButton_99.setText("Обновить")
         self.textEdit_4 = QtWidgets.QTextEdit(parent=self.page_4)
         self.textEdit_4.setGeometry(QtCore.QRect(10, 20, 171, 31))
         self.textEdit_4.setStyleSheet("QTextEdit {\n"

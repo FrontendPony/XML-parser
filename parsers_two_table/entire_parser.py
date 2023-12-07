@@ -18,6 +18,20 @@ def parse_articles_to_excel(xml_filename):
     existing_data = pd.read_sql(existing_data_query, engine)
     counter_dict = {}
     unique_pairs = set()
+    try:
+        existing_data_for_additional_ids_query = f"SELECT * FROM alternative_author_ids JOIN authors_organisations USING(author_id)"
+        existing_data_for_additional_ids = pd.read_sql(existing_data_for_additional_ids_query, engine)
+        for _, row in existing_data_for_additional_ids.iterrows():
+            key = (str(row['additional_author_id']), str(row['org_id']))
+            value = row['counter']
+            counter_dict[key] = value
+
+        for _, row in existing_data_for_additional_ids.iterrows():
+            pair = (str(row['additional_author_id']), str(row['org_id']))
+            unique_pairs.add(pair)
+    except:
+        print('Something wrong happend')
+
 
     for _, row in existing_data.iterrows():
         key = (str(row['author_id']), str(row['org_id']))
@@ -27,6 +41,9 @@ def parse_articles_to_excel(xml_filename):
     for _, row in existing_data.iterrows():
         pair = (str(row['author_id']), str(row['org_id']))
         unique_pairs.add(pair)
+
+
+
     query = """
                              SELECT MAX(counter) FROM authors_organisations
                             """
@@ -69,7 +86,7 @@ def parse_articles_to_excel(xml_filename):
     author_count = []
     for tag in soup.findAll("item"):
         # item
-        fields_extra['item_id'].append(tag['id'])
+        fields_extra['item_id'].append(int(tag['id']))
         fields['item_id'].append(tag['id'])
         fields['linkurl'].append(tag.find('linkurl').text if tag.find('linkurl') is not None else "")
         linkurl = tag.find('linkurl').text if tag.find('linkurl') is not None else ""
@@ -169,7 +186,6 @@ def parse_articles_to_excel(xml_filename):
                                              "org_name": org_name,
                                              "linkurl": linkurl
                                          }
-                                         # Append the dictionary to the list
                                          array_of_dicts.append(data_dict)
                                          count_author_org.append(counter_all)
                                          counter_dict_fornull_author[key] = counter
@@ -270,7 +286,6 @@ def parse_articles_to_excel(xml_filename):
                                 count_author_org.append(counter_dict_fornull_author[key])
                         elif author_id != " " and org_id == " ":
                             key = (author_id, org_name)
-                            # Check if the key is not in the set of unique combinations
                             if key not in unique_combinations:
                                 counter_all += 1
                                 counter += 1
@@ -283,7 +298,6 @@ def parse_articles_to_excel(xml_filename):
                                     "org_name": org_name,
                                     "linkurl": linkurl
                                 }
-                                # Append the dictionary to the list
                                 array_of_dicts.append(data_dict)
                                 count_author_org.append(counter_all)
                                 counter_dict_fornull_org[key] = counter
@@ -294,7 +308,6 @@ def parse_articles_to_excel(xml_filename):
                                 count_author_org.append(counter_dict_fornull_org[key])
                         elif author_id == " " and org_id == " ":
                             key = (author_name + ' ' + author_initials, org_id)
-                            # Check if the key is not in the set of unique combinations
                             if key not in unique_combinations:
                                 counter_all += 1
                                 counter += 1
@@ -307,7 +320,6 @@ def parse_articles_to_excel(xml_filename):
                                     "org_name": org_name,
                                     "linkurl": linkurl
                                 }
-                                # Append the dictionary to the list
                                 array_of_dicts.append(data_dict)
                                 count_author_org.append(counter_all)
                                 counter_dict_fornull_author_and_org[key] = counter
@@ -325,7 +337,6 @@ def parse_articles_to_excel(xml_filename):
     authors_organisations = pd.DataFrame(author_organisation,
                                          columns=['counter', 'author_id', 'author_name', 'author_initials', 'org_id', 'org_name'])
     authors_organisations['author_fullname'] = authors_organisations['author_name'] + ' ' + authors_organisations['author_initials']
-    authors_organisations['additional_author_id'] = None
     authors_organisations.to_excel('authors_organisations.xlsx', index=False)
     authors_organisations.to_excel('authors_organisations_initial.xlsx', index=False)
     article.to_excel("article.xlsx", index=False)
@@ -344,7 +355,6 @@ def parse_articles_to_excel(xml_filename):
         org_id = data_dict.get("org_id")
         org_name = data_dict.get("org_name")
 
-        # Check if author_id is None and the author_name + author_initials pair is unique
         if author_id == " " and (author_name, author_initials) not in unique_author_pairs:
             unique_author_pairs.add((author_name, author_initials))
             author_filtered_data.append({
@@ -354,31 +364,23 @@ def parse_articles_to_excel(xml_filename):
                 "linkurl": data_dict["linkurl"]
             })
 
-        # Check if org_id is None and the org_name is unique
         if org_id == " " and org_name not in unique_org_names:
             unique_org_names.add(org_name)
             org_filtered_data.append({"org_id": data_dict["org_id"],
                 "org_name": data_dict["org_name"]})
 
 
-    # Create dataframes from the filtered data
     author_df = pd.DataFrame(author_filtered_data)
     org_df = pd.DataFrame(org_filtered_data)
 
-    # Define Excel writer for author_filtered_data
+
     author_writer = pd.ExcelWriter('author_filtered_data.xlsx', engine='xlsxwriter')
     author_df.to_excel(author_writer, sheet_name='Author Filtered Data', index=False)
-
-
-
-    # Save the Excel file for author_filtered_data
     author_writer._save()
 
     # Define Excel writer for org_filtered_data
     org_writer = pd.ExcelWriter('org_filtered_data.xlsx', engine='xlsxwriter')
     org_df.to_excel(org_writer, sheet_name='Org Filtered Data', index=False)
-
-    # Save the Excel file for org_filtered_data 
     org_writer._save()
 
 
