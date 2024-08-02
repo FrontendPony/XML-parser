@@ -1,6 +1,6 @@
-database_parametres= {'dbname':"parserdb_ln0y",
-                     'user':"kamil",
-                     'password':"BDT51oVB2PZom9IeH69LuGPmaakG7vpK",
-                     'host':"clopu3946foc73a2soe0-a.frankfurt-postgres.render.com",
+database_parametres= {'dbname':"praktika",
+                     'user':"postgres",
+                     'password':"sword9999",
+                     'host':"localhost",
                      'port': "5432"
 }

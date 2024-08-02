@@ -20,7 +20,7 @@
 /*= Style for header widget START
   ==================================================== */
 	#widget {
-		background-color: #f9fafd;
+		background-color: #f5eded;
 	}
 /*= END
   ==================================================== */
@@ -198,4 +198,54 @@ MainWindow {
 	}
 /*= END
 
+  /*= Style for user information button START
+  ==================================================== */
+	#restore_file_choice_button {
+		color:white;
+		background-color:#0a7e8c;
+		font-weight: bold;
+		font-size: 16pt;
+		border-radius: 25px;
+	}
+/*= END
+
+
+
+  /*= Style for user information button START
+  ==================================================== */
+	#button_for_journal_import {
+		color:white;
+		background-color:#0a7e8c;
+		font-weight: bold;
+		font-size: 16pt;
+		border-radius: 25px;
+	}
+/*= END
+
+  /*= Style for user information button START
+  ==================================================== */
+	#button_for_conference_import {
+		color:white;
+		background-color:#eedd66;
+		font-weight: bold;
+		font-size: 16pt;
+		border-radius: 25px;
+	}
+/*= END
+
+  /*= Style for user information button START
+  ==================================================== */
+	#conference_upper_scroll  {
+
+		background-color:black;
+	}
+/*= END
+
+  /*= Style for user information button START
+  ==================================================== */
+	#conference_down_scroll  {
+
+		background-color:yellow;
+	}
+/*= END
 

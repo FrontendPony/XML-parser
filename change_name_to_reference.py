@@ -12,6 +12,5 @@ def update_df1_with_df2(df1_file, df2_file):
 
     df1.to_excel(df1_file)
 
-# Usage example:
-# update_df1_with_df2('authors_organisations.xlsx', 'authors_ref.xlsx')
+
 

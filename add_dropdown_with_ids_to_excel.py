@@ -22,8 +22,8 @@ def add_dropdown_with_ids_to_excel(data_arrays, file_name):
         sheet = workbook.active
 
         # Add new name to the first row of column F
-        sheet[f'F1'].value = 'author_id_choice'
-        sheet[f'F1'].font = Font(bold=True)
+        sheet[f'G1'].value = 'author_id_choice'
+        sheet[f'G1'].font = Font(bold=True)
 
         row = 2
         for data_array in data_arrays:
@@ -33,7 +33,7 @@ def add_dropdown_with_ids_to_excel(data_arrays, file_name):
                 people_ids = [data_array[i] for i in range(1, len(data_array), 4)]
                 dv = DataValidation(type="list", formula1=f'"{",".join(map(str, people_ids))}"')
                 sheet.add_data_validation(dv)
-                dv.add(sheet[f'F{row}'])
+                dv.add(sheet[f'G{row}'])
                 if col > 4:
                     col = 1
                     row += 1

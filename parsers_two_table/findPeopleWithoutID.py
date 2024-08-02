@@ -45,7 +45,6 @@ def update_author_id(excel_file_path):
         filtered_rows = df[(df['author_fullname'].isin(unique_author_names)) & (df['author_id'] != ' ')]
         df_database['author_fullname'] = df_database['author_name'] + " " + df_database['author_initials']
         filtered_rows_from_db = df_database[(df_database['author_fullname'].isin(unique_author_names))]
-
         if len(filtered_rows) > 0:
             filtered_rows = filtered_rows.drop_duplicates(subset=['author_fullname'], keep='last')
             author_name_id_dict = dict(zip(filtered_rows['author_fullname'], filtered_rows['author_id']))
@@ -57,7 +56,6 @@ def update_author_id(excel_file_path):
                     return ' '
 
             df_null['possible_id_from_xml'] = df_null.apply(compute_possible_id, axis=1)
-
         if len(filtered_rows_from_db) > 0:
                 filtered_rows_from_db = filtered_rows_from_db.drop_duplicates(subset=['author_fullname'], keep='last')
                 author_name_id_dict = dict(zip(filtered_rows_from_db['author_fullname'], filtered_rows_from_db['author_id']))

@@ -11,7 +11,8 @@ def extract_numbers_from_string(input_string):
     number = re.findall(pattern, input_string)
     number = [int(num) for num in number]
     return number
-def parse_articles_to_excel(xml_filename):
+
+def parse_articles_to_excel(xml_filename, journal, conferences):
     connection_str = f"postgresql://{database_parametres['user']}:{database_parametres['password']}@{database_parametres['host']}:{database_parametres['port']}/{database_parametres['dbname']}"
     engine = create_engine(connection_str)
     existing_data_query = f"SELECT * FROM authors_organisations"
@@ -29,8 +30,8 @@ def parse_articles_to_excel(xml_filename):
         for _, row in existing_data_for_additional_ids.iterrows():
             pair = (str(row['additional_author_id']), str(row['org_id']))
             unique_pairs.add(pair)
-    except:
-        print('Something wrong happend')
+    except Exception as e:
+        print(f'Something wrong happened: {str(e)}')
 
 
     for _, row in existing_data.iterrows():
@@ -41,7 +42,6 @@ def parse_articles_to_excel(xml_filename):
     for _, row in existing_data.iterrows():
         pair = (str(row['author_id']), str(row['org_id']))
         unique_pairs.add(pair)
-
 
 
     query = """
@@ -63,6 +63,13 @@ def parse_articles_to_excel(xml_filename):
               "publisher": [], "vak": [], "rcsi": [], "wos": [], "scopus": [], "quartile": [], "year": [], "number": [],
               'contnumber': [], "volume": [], "page_begin": [], "page_end": [], "language": [], "title_article": [],
               "doi": [], "edn": [], 'grnti': [], 'risc': [], 'corerisc': []}
+    fields_conf = {'item_id': [], 'linkurl': [], 'genre': [], 'type': [], "source_id": [], "title_source": [],
+                   "volumenumber": [],
+                   "volumename": [], "seriesnumber": [], "seriesname": [], "edn_source": [], "year_source": [], "title_article": [], "edn": [], "publisher": [],
+                   "confname": [],  "confplace": [], "confdatebegin": [],
+                   'confdateend': [], "page_begin": [], "page_end": [], "language": [], "year": [], "doi": [],
+                   "edn": [], 'grnti': [], 'risc': [], 'corerisc': []
+                   }
     fields_extra = {"item_id": [], 'counter': []}
 
     fd = open(xml_filename, 'r', encoding='utf-8')
@@ -78,56 +85,103 @@ def parse_articles_to_excel(xml_filename):
     else:
         counter = number[0]
         counter_all = number[0]
-
     unique_combinations = set()
     counter_dict_fornull_author = {}
     counter_dict_fornull_org = {}
     counter_dict_fornull_author_and_org = {}
     author_count = []
     for tag in soup.findAll("item"):
-        # item
-        fields_extra['item_id'].append(int(tag['id']))
-        fields['item_id'].append(tag['id'])
-        fields['linkurl'].append(tag.find('linkurl').text if tag.find('linkurl') is not None else "")
-        linkurl = tag.find('linkurl').text if tag.find('linkurl') is not None else ""
-        fields['genre'].append(tag.find('genre').text if tag.find('genre') is not None else "")
-        fields['type'].append(tag.find('type').text if tag.find('type') is not None else "")
+        if journal:
+            # item
+            fields_extra['item_id'].append(int(tag['id']))
+            fields['item_id'].append(tag['id'])
+            fields['linkurl'].append(tag.find('linkurl').text if tag.find('linkurl') is not None else "")
+            linkurl = tag.find('linkurl').text if tag.find('linkurl') is not None else ""
+            fields['genre'].append(tag.find('genre').text if tag.find('genre') is not None else "")
+            fields['type'].append(tag.find('type').text if tag.find('type') is not None else "")
+            # journal
+            fields['journal_title'].append(tag.find('journal').find('title').text if tag.find('journal').find('title') is not None else "")
+            fields['issn'].append(tag.find('journal').find('issn').text if tag.find('journal').find('issn') is not None else "")
+            fields['eissn'].append(tag.find('journal').find('eissn').text if tag.find('journal').find('eissn') is not None else "")
+            fields['publisher'].append(tag.find('journal').find('publisher').text if tag.find('journal').find('publisher') is not None else "")
+            fields['vak'].append(tag.find('journal').find('vak').text if tag.find('journal').find('vak') is not None else "")
+            fields['rcsi'].append(tag.find('journal').find('rcsi').text if tag.find('journal').find('rcsi') is not None else "")
+            fields['wos'].append(tag.find('journal').find('wos').text if tag.find('journal').find('wos') is not None else "")
+            fields['scopus'].append(tag.find('journal').find('scopus').text if tag.find('journal').find('scopus') is not None else "")
+            fields['quartile'].append("")
 
-        # journal
-        fields['journal_title'].append(tag.find('journal').find('title').text if tag.find('journal').find('title') is not None else "")
-        fields['issn'].append(tag.find('journal').find('issn').text if tag.find('journal').find('issn') is not None else "")
-        fields['eissn'].append(tag.find('journal').find('eissn').text if tag.find('journal').find('eissn') is not None else "")
-        fields['publisher'].append(tag.find('journal').find('publisher').text if tag.find('journal').find('publisher') is not None else "")
-        fields['vak'].append(tag.find('journal').find('vak').text if tag.find('journal').find('vak') is not None else "")
-        fields['rcsi'].append(tag.find('journal').find('rcsi').text if tag.find('journal').find('rcsi') is not None else "")
-        fields['wos'].append(tag.find('journal').find('wos').text if tag.find('journal').find('wos') is not None else "")
-        fields['scopus'].append(tag.find('journal').find('scopus').text if tag.find('journal').find('scopus') is not None else "")
-        fields['quartile'].append("")
+            # issue
+            fields['year'].append(tag.find('issue').find('year').text if tag.find('issue').find('year') is not None else "")
+            fields['number'].append(tag.find('issue').find('number').text if tag.find('issue').find('number') is not None else "")
+            fields['contnumber'].append(tag.find('issue').find('contnumber').text if tag.find('issue').find('contnumber') is not None else "")
+            fields['volume'].append(tag.find('issue').find('volume').text if tag.find('issue').find('volume') is not None else "")
 
-        # issue
-        fields['year'].append(tag.find('issue').find('year').text if tag.find('issue').find('year') is not None else "")
-        fields['number'].append(tag.find('issue').find('number').text if tag.find('issue').find('number') is not None else "")
-        fields['contnumber'].append(tag.find('issue').find('contnumber').text if tag.find('issue').find('contnumber') is not None else "")
-        fields['volume'].append(tag.find('issue').find('volume').text if tag.find('issue').find('volume') is not None else "")
+            # item
+            list_pages = tag.find('pages').text.split("-") if tag.find('pages') is not None else [" "]
+            if len(list_pages) == 2:
+                fields["page_begin"].append(list_pages[0])
+                fields["page_end"].append(list_pages[1])
+            else:
+                fields["page_begin"].append(list_pages[0])
+                fields["page_end"].append(list_pages[0])
+            fields['language'].append(tag.find('language').text if tag.find('language') is not None else "")
 
-        # item
-        list_pages = tag.find('pages').text.split("-") if tag.find('pages') is not None else [" "]
-        if len(list_pages) == 2:
-            fields["page_begin"].append(list_pages[0])
-            fields["page_end"].append(list_pages[1])
-        else:
-            fields["page_begin"].append(list_pages[0])
-            fields["page_end"].append(list_pages[0])
-        fields['language'].append(tag.find('language').text if tag.find('language') is not None else "")
+            # titles
+            fields['title_article'].append(tag.find('titles').find('title').text if tag.find('titles').find('title') is not None else "")
+            # item
+            fields['doi'].append(tag.find('doi').text if tag.find('doi') is not None else "")
+            fields['edn'].append(tag.find('edn').text if tag.find('edn') is not None else "")
+            fields['grnti'].append(tag.find('grnti').text if tag.find('grnti') is not None else "")
+            fields['risc'].append(tag.find('risc').text if tag.find('risc') is not None else "")
+            fields['corerisc'].append(tag.find('corerisc').text if tag.find('corerisc') is not None else "")
 
-        # titles
-        fields['title_article'].append(tag.find('titles').find('title').text if tag.find('titles').find('title') is not None else "")
-        # item
-        fields['doi'].append(tag.find('doi').text if tag.find('doi') is not None else "")
-        fields['edn'].append(tag.find('edn').text if tag.find('edn') is not None else "")
-        fields['grnti'].append(tag.find('grnti').text if tag.find('grnti') is not None else "")
-        fields['risc'].append(tag.find('risc').text if tag.find('risc') is not None else "")
-        fields['corerisc'].append(tag.find('corerisc').text if tag.find('corerisc') is not None else "")
+        elif conferences:
+            # item
+            fields_extra['item_id'].append(int(tag['id']))
+            fields_conf['item_id'].append(tag['id'])
+            fields_conf['linkurl'].append(tag.find('linkurl').text if tag.find('linkurl') is not None else "")
+            linkurl = tag.find('linkurl').text if tag.find('linkurl') is not None else ""
+            fields_conf['genre'].append(tag.find('genre').text if tag.find('genre') is not None else "")
+            fields_conf['type'].append(tag.find('type').text if tag.find('type') is not None else "")
+
+
+            #source
+            fields_conf['source_id'].append(tag['id'])
+            # titles
+            fields_conf['title_source'].append(
+                tag.find('source').find('titles').find('title').text if tag.find('titles').find(
+                    'title') is not None else "")
+            fields_conf['volumenumber'].append(tag.find('source').find('volumenumber').text if tag.find('source').find('volumenumber') is not None else "")
+            fields_conf['volumename'].append(tag.find('source').find('volumename').text if tag.find('source').find('volumename') is not None else "")
+            fields_conf['seriesnumber'].append(tag.find('source').find('seriesnumber').text if tag.find('source').find('seriesnumber') is not None else "")
+            fields_conf['seriesname'].append(tag.find('source').find('seriesname').text if tag.find('source').find('seriesname') is not None else "")
+            fields_conf['year_source'].append(tag.find('source').find('yearpubl').text if tag.find('source').find('yearpubl') is not None else "")
+            fields_conf['edn_source'].append(tag.find('source').find('edn').text if tag.find('source').find('edn') is not None else "")
+            fields_conf['publisher'].append(tag.find('source').find('publisher').text if tag.find('source').find('publisher') is not None else "")
+            fields_conf['confname'].append(tag.find('source').find('confname').text if tag.find('source').find('confname') is not None else "")
+            fields_conf['confplace'].append(tag.find('source').find('confplace').text if tag.find('source').find('confplace') is not None else "")
+            fields_conf['confdatebegin'].append(tag.find('source').find('confdatebegin').text if tag.find('source').find('confdatebegin') is not None else "")
+            fields_conf['confdateend'].append(tag.find('source').find('confdateend').text if tag.find('source').find('confdateend') is not None else "")
+
+            list_pages = tag.find('pages').text.split("-") if tag.find('pages') is not None else [" "]
+            if len(list_pages) == 2:
+                fields_conf["page_begin"].append(list_pages[0])
+                fields_conf["page_end"].append(list_pages[1])
+            else:
+                fields_conf["page_begin"].append(list_pages[0])
+                fields_conf["page_end"].append(list_pages[0])
+            fields_conf['year'].append(tag.find('yearpubl').text if tag.find('yearpubl') is not None else "")
+            fields_conf['language'].append(tag.find('language').text if tag.find('language') is not None else "")
+            fields_conf['title_article'].append(
+                tag.find('titles').find('title').text if tag.find('titles').find(
+                    'title') is not None else "")
+
+            # item
+            fields_conf['doi'].append(tag.find('doi').text if tag.find('doi') is not None else "")
+            fields_conf['edn'].append(tag.find('edn').text if tag.find('edn') is not None else "")
+            fields_conf['grnti'].append(tag.find('grnti').text if tag.find('grnti') is not None else "")
+            fields_conf['risc'].append(tag.find('risc').text if tag.find('risc') is not None else "")
+            fields_conf['corerisc'].append(tag.find('corerisc').text if tag.find('corerisc') is not None else "")
 
         count_author_org = []
         langArray = []
@@ -331,16 +385,24 @@ def parse_articles_to_excel(xml_filename):
                 except TypeError:
                     continue
         fields_extra['counter'].append(count_author_org)
-    article = pd.DataFrame(data=fields)
-    article_extra = pd.DataFrame(data=fields_extra)
-    article_extra = article_extra.explode('counter')
-    authors_organisations = pd.DataFrame(author_organisation,
+    try:
+        if journal:
+            article = pd.DataFrame(data=fields)
+        elif conferences:
+            conference = pd.DataFrame(data=fields_conf)
+        article_extra = pd.DataFrame(data=fields_extra)
+        article_extra = article_extra.explode('counter')
+        article_extra.to_excel('article_authors_linkage.xlsx', index=False)
+        authors_organisations = pd.DataFrame(author_organisation,
                                          columns=['counter', 'author_id', 'author_name', 'author_initials', 'org_id', 'org_name'])
-    authors_organisations['author_fullname'] = authors_organisations['author_name'] + ' ' + authors_organisations['author_initials']
-    authors_organisations.to_excel('authors_organisations.xlsx', index=False)
-    authors_organisations.to_excel('authors_organisations_initial.xlsx', index=False)
-    article.to_excel("article.xlsx", index=False)
-    article_extra.to_excel('article_authors_linkage.xlsx', index=False)
+        authors_organisations['author_fullname'] = authors_organisations['author_name'] + ' ' + authors_organisations['author_initials']
+        authors_organisations.to_excel('authors_organisations.xlsx', index=False)
+        if journal:
+            article.to_excel("article.xlsx", index=False)
+        elif conferences:
+            conference.to_excel("conference.xlsx", index=False)
+    except Exception as e:
+        print(f"An error occurred: {e}")
     fd.close()
 
     unique_author_pairs = set()  # To keep track of unique author_name + author_initials pairs
@@ -386,6 +448,6 @@ def parse_articles_to_excel(xml_filename):
 
 
 if __name__ == "__main__":
-    parse_articles_to_excel('org_items_570_149195.xml')
+    parse_articles_to_excel('org_items_570_6977198.xml',journal=0,conferences=1)
 
 

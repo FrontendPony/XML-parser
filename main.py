@@ -1,4 +1,6 @@
 import sys
+import os
+import sqlalchemy
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QMainWindow, QApplication, QPushButton,QFileDialog,QMessageBox
 import pandas as pd
@@ -29,6 +31,9 @@ from open_excel import run_excel
 from combine_people import combine_people
 from merge_similar import merge_similar
 from psycopg2 import Error
+from backup import create_postgres_backup
+from restore import restore_database
+import time
 
 class MyDialog(QtWidgets.QDialog):
     def __init__(self, data_1):
@@ -126,7 +131,6 @@ class MyDialog(QtWidgets.QDialog):
             if len(data_1) > 0:
                 self.fillDialogTables(data_1)
             else:
-                print(self.data_list_to_update)
                 leave_person_from_lower_row('merged_ao.xlsx', self.data_list_to_update)
                 update_additional_author_id('merged_ao.xlsx', self.data_list_to_add_id)
                 self.close()
@@ -150,11 +154,11 @@ class Dialog(QtWidgets.QDialog):
         some_row_index = 0
         some_column_index = 0
         for i in range(len(data_1)):
-            for j in range(26):
+            for j in range(25):
                 item = QtWidgets.QTableWidgetItem(str(data_1[i][j]))
                 self.ui_dialog.row_from_database.setItem(i, j, item)
         for i in range(len(data_2)):
-            for j in range(26):
+            for j in range(25):
                 item = QtWidgets.QTableWidgetItem(str(data_2[i][j]))
                 self.ui_dialog.row_from_excel.setItem(i, j, item)
     def fillDialogTables(self, data_1, data_2, index_array_1, index_array_2):
@@ -162,12 +166,14 @@ class Dialog(QtWidgets.QDialog):
         self.ui_dialog.row_from_excel.clearContents()
         some_row_index = 0
         some_column_index = 0
+        print(data_1)
+        print(len(data_1))
         for i in range(len(data_1)):
-            for j in range(26):
+            for j in range(25):
                 item = QtWidgets.QTableWidgetItem(str(data_1[i][j]))
                 self.ui_dialog.row_from_database.setItem(i, j, item)
         for i in range(len(data_2)):
-            for j in range(26):
+            for j in range(25):
                 item = QtWidgets.QTableWidgetItem(str(data_2[i][j]))
                 self.ui_dialog.row_from_excel.setItem(i, j, item)
 
@@ -202,17 +208,21 @@ class MainWindow(QMainWindow):
         self.ui.stackedWidget.setCurrentIndex(0)
         self.ui.home_button_iconexpandedwidget.setChecked(True)
         self.import_button_onlyiconwidget = self.findChild(QPushButton, "import_button_onlyiconwidget")
-        self.import_button_onlyiconwidget.clicked.connect(self.importButtonClickHandler)
+        self.ui.button_for_journal_import.clicked.connect(lambda: self.importButtonClickHandler(1, 0))
         self.export_button = self.findChild(QPushButton, "pushButton")
         self.export_button.clicked.connect(lambda: self.getYearAndSurname(False))
         self.import_button_expandedwidget = self.findChild(QPushButton, "import_button_expandedwidget")
-        self.import_button_expandedwidget.clicked.connect(self.importButtonClickHandler)
+        self.ui.button_for_conference_import.clicked.connect(lambda: self.importButtonClickHandler(0, 1))
         self.search_button = self.findChild(QPushButton, "Primary")
         self.search_button.clicked.connect(self.get_text)
         self.preview_button = self.findChild(QPushButton, "Primary_3")
         self.preview_button.clicked.connect(lambda: self.getYearAndSurname(True))
         # self.search_button = self.findChild(QPushButton, "general_data_export_button")
         # self.search_button.clicked.connect(self.get_test_auf)
+        self.ui.Primary_5.clicked.connect(lambda:self.confirm_delete(self.ui.tableWidget_conference, 'conference', 'article_authors_linkage', 'item_id', self.ui.handleItemChanged_4))
+        self.ui.pushButton_97_del.clicked.connect(lambda: self.confirm_delete(self.ui.tableWidget_article_2, 'article', 'article_authors_linkage','item_id', self.ui.handleItemChanged))
+        self.ui.pushButton_99_del.clicked.connect(lambda: self.confirm_delete(self.ui.tableWidget_authors, 'authors_organisations', 'article_authors_linkage', 'counter', self.ui.handleItemChanged_3))
+        self.ui.restore_file_choice_button.clicked.connect(self.restore_db)
         self.user_button = self.findChild(QPushButton, "user_button")
         self.user_button.clicked.connect(lambda: self.authorsReferenceToSQL(database_parametres))
         self.add_one_row_button = self.findChild(QPushButton, "add_one_row_button")
@@ -223,9 +233,13 @@ class MainWindow(QMainWindow):
         self.full_search_button_2.clicked.connect(lambda: self.search(self.ui.tableWidget_article_author, self.ui.textEdit_3, self.next_result_button_2, self.previous_result_button_2, self.ui.handleItemChanged_2))
         self.full_search_button_3 = self.findChild(QPushButton, "pushButton_10")
         self.full_search_button_3.clicked.connect(lambda: self.search(self.ui.tableWidget_authors, self.ui.textEdit_4, self.next_result_button_3, self.previous_result_button_3, self.ui.handleItemChanged_3))
+        self.full_search_button_4 = self.findChild(QPushButton, "Primary_2")
+        self.full_search_button_4.clicked.connect(lambda: self.search(self.ui.tableWidget_conference, self.ui.textEdit_conf, self.next_result_button_4,self.previous_result_button_4, self.ui.handleItemChanged_4))
         self.ui.pushButton_99.clicked.connect(lambda: self.dataLoadFromDB(self.ui.tableWidget_authors, 'SELECT * FROM authors_organisations ORDER BY counter', self.ui.handleItemChanged_3))
         self.ui.pushButton_98.clicked.connect(lambda: self.dataLoadFromDB(self.ui.tableWidget_article_author,'SELECT * FROM article_authors_linkage ORDER BY item_id, counter',self.ui.handleItemChanged_2))
         self.ui.pushButton_97.clicked.connect(lambda: self.dataLoadFromDB(self.ui.tableWidget_article_2, 'SELECT * FROM article ORDER BY item_id',self.ui.handleItemChanged))
+        self.ui.Primary_4.clicked.connect(lambda: self.dataLoadFromDB(self.ui.tableWidget_conference, 'SELECT * FROM conference ORDER BY item_id',self.ui.handleItemChanged_4))
+
         self.next_result_button = self.findChild(QPushButton, "pushButton_4")
         self.next_result_button.clicked.connect(lambda: self.scroll_to_next_result(self.ui.tableWidget_article_2, self.ui.handleItemChanged))
         self.next_result_button.setEnabled(False)
@@ -253,6 +267,16 @@ class MainWindow(QMainWindow):
             lambda: self.scroll_to_previous_result(self.ui.tableWidget_authors, self.ui.handleItemChanged_3))
         self.previous_result_button_3.setEnabled(False)
 
+        self.next_result_button_4 = self.findChild(QPushButton, "button_conference_upper_scroll")
+        self.next_result_button_4.clicked.connect(
+            lambda: self.scroll_to_next_result(self.ui.tableWidget_conference, self.ui.handleItemChanged_4))
+        self.next_result_button_4.setEnabled(False)
+
+        self.previous_result_button_4 = self.findChild(QPushButton, "button_conference_down_scroll")
+        self.previous_result_button_4.clicked.connect(
+            lambda: self.scroll_to_previous_result(self.ui.tableWidget_conference, self.ui.handleItemChanged_4))
+        self.previous_result_button_4.setEnabled(False)
+
         self.search_results = []
         self.current_result_index = 0
         self.signal_connected = True
@@ -270,10 +294,10 @@ class MainWindow(QMainWindow):
             print(f"An error occurred: {str(e)}")
 
     def dataLoadFromDB(self, tableWidget, query, handleItemChanged):
-        print(223)
         if self.signal_connected:
             tableWidget.itemChanged.disconnect(handleItemChanged)
             self.signal_connected = False
+        tableWidget.setRowCount(0)
         conn = psycopg2.connect(database=database_parametres['dbname'],
                                 user=database_parametres['user'],
                                 password=database_parametres['password'],
@@ -292,37 +316,83 @@ class MainWindow(QMainWindow):
         if not self.signal_connected:
             tableWidget.itemChanged.connect(handleItemChanged)
             self.signal_connected = True
-    # def deleteRowOnChoice(self, data_2):
-    #     item_id = data_2[0][0]
-    #     author_id = data_2[0][1]
-    #     author_name = data_2[0][2]
-    #     print(item_id, author_id, author_name)
-    #     conn = psycopg2.connect(database=database_parametres['dbname'],
-    #                             user=database_parametres['user'],
-    #                             password=database_parametres['password'],
-    #                             host=database_parametres['host'],
-    #                             port=database_parametres['port'])
-    #     cur = conn.cursor()
-    #     try:
-    #         delete_query = """
-    #                DELETE FROM article_author
-    #                 WHERE item_id = %s AND
-    #                 author_id = %s AND
-    #                 author_name = %s
-    #                """
-    #         cur.execute(delete_query, (item_id, author_id, author_name))
-    #         conn.commit()
-    #         print("Row deleted successfully.")
-    #
-    #     except Exception as e:
-    #         print("Error:", e)
-    #         conn.rollback()
-    #
-    #     finally:
-    #         cur.close()
-    #         conn.close()
+    def countDependentStrings(self, selected_id, dependent_table, unique_id):
+        conn = psycopg2.connect(database=database_parametres['dbname'],
+                                user=database_parametres['user'],
+                                password=database_parametres['password'],
+                                host=database_parametres['host'],
+                                port=database_parametres['port'])
+        cur = conn.cursor()
+        count = 0
+        try:
+            delete_query = f"SELECT COUNT(*) FROM {dependent_table} WHERE {unique_id} = {selected_id};"
+            cur.execute(delete_query)
+            count = cur.fetchone()[0]
+            conn.commit()
+            print("Amount is calculated successfully.")
+        except Exception as e:
+            print("Error:", e)
+            conn.rollback()
+        finally:
+            cur.close()
+            conn.close()
+        return count
+
+    def delete_specified_row_and_dependent(self, selected_id, selected_table, unique_id, dependent_table):
+        conn = psycopg2.connect(
+            database=database_parametres['dbname'],
+            user=database_parametres['user'],
+            password=database_parametres['password'],
+            host=database_parametres['host'],
+            port=database_parametres['port']
+        )
+        cur = conn.cursor()
+        try:
+            delete_query_dependent = f"DELETE FROM {dependent_table} WHERE {unique_id} = {selected_id};"
+            delete_query_conference = f"DELETE FROM {selected_table} WHERE {unique_id} = {selected_id};"
+
+            cur.execute(delete_query_dependent)
+            cur.execute(delete_query_conference)
+
+            conn.commit()
+            print("Rows deleted successfully.")
+        except Exception as e:
+            print("Error:", e)
+            conn.rollback()
+        finally:
+            cur.close()
+            conn.close()
+
+    def confirm_delete(self, table_widget, selected_table, dependent_table, unique_id, handleItemChanged):
+        row = table_widget.currentRow()
+
+        if row >= 0:
+            selected_id_item = table_widget.item(row, 0)
+            if selected_id_item is not None:
+                selected_id = selected_id_item.text()
+                amount = self.countDependentStrings(selected_id, dependent_table, unique_id)
+                reply = QMessageBox.question(self, 'Удаление строки',
+                                             f"Вы действительно хотите удалить строки? При этом удалится {amount} записи в связанной таблице {dependent_table}",
+                                             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                if reply == QMessageBox.StandardButton.Yes:
+                    self.delete_specified_row_and_dependent(selected_id, selected_table, unique_id, dependent_table)
+                    self.dataLoadFromDB(table_widget, f"SELECT * FROM {selected_table} ORDER BY {unique_id}", handleItemChanged)
+                    self.dataLoadFromDB(self.ui.tableWidget_article_author,'SELECT * FROM article_authors_linkage ORDER BY item_id, counter',self.ui.handleItemChanged_2)
+            else:
+                QMessageBox.warning(self, 'Ошибка', 'Выбранная строка не содержит ID')
+        else:
+            QMessageBox.warning(self, 'Ошибка', 'Выберите строку для удаления')
 
 
+
+
+    def restore_db(self):
+        file_name, _ = QFileDialog.getOpenFileName(None, "Open backup file", "", "All Files (*);; SQL Files (*.sql)")
+
+        if file_name:
+            restore_database(self, file_name)
+        else:
+            print("No file selected.")
     def search(self, table_widget, textEdit, next_btn, prev_btn, handleItemChanged):
         try:
             if self.signal_connected:
@@ -518,7 +588,7 @@ class MainWindow(QMainWindow):
 
             cursor = connection.cursor()
             self.ui.tableWidget_2.clearContents()
-
+            where_conditions = where[0] if where else "1=1"
             sql_query = """
                      with cte as (SELECT 
         			linkurl, count(DISTINCT author_id) as author_count
@@ -556,7 +626,7 @@ class MainWindow(QMainWindow):
         			cte USING(linkurl)
         		window affilations_cnt as (partition by linkurl, author_id)) AS subquery
         		WHERE {0}
-                    """.format(where[0])
+                    """.format(where_conditions)
 
             cursor.execute(sql_query)
             result = cursor.fetchall()
@@ -730,7 +800,7 @@ class MainWindow(QMainWindow):
 
 
 
-    def import_xlsx_to_postgresql2(self, database_params, xlsx_file_path, table_name, index_col):
+    def import_xlsx_to_postgresql2(self, database_params, xlsx_file_path, table_name, index_col,  journal, conferences):
         try:
             data_from_sql = []
             data_from_excel = []
@@ -762,6 +832,28 @@ class MainWindow(QMainWindow):
                 'edn',
                 'risc',
                 'corerisc']
+
+            float_columns_conf = [
+                'linkurl',
+                'genre',
+                'type',
+                'title_source',
+                'volumename',
+                'seriesname',
+                'edn_source',
+                'publisher',
+                'confname',
+                'confplace',
+                'confdatebegin',
+                'confdateend',
+                'page_begin',
+                'page_end',
+                'language',
+                'title_article',
+                'doi',
+                'edn',
+                'risc',
+                'corerisc']
             data_frame = pd.read_excel(xlsx_file_path, index_col=index_col)
             if table_name == 'authors_organisations':
                 if "Unnamed: 0" in data_frame.columns:
@@ -770,6 +862,9 @@ class MainWindow(QMainWindow):
                     data_frame.drop("author_fullname", axis=1, inplace=True)
             if table_name == 'article':
                 for column in float_columns:
+                    data_frame[column] = data_frame[column].apply(lambda x: replace_float_with_null(x))
+            if table_name == 'conference':
+                for column in float_columns_conf:
                     data_frame[column] = data_frame[column].apply(lambda x: replace_float_with_null(x))
             existing_data_query = f"SELECT * FROM {table_name}"
             existing_data = pd.read_sql(existing_data_query, engine)
@@ -782,9 +877,11 @@ class MainWindow(QMainWindow):
                 merged_data.to_excel('merged.xlsx')
                 update_excel_file('merged.xlsx')
                 merged_data = pd.read_excel('merged.xlsx', index_col=0)
+                merged_data = merged_data.loc[:, ~merged_data.columns.str.contains('^Unnamed')]
                 duplicate_rows = merged_data.duplicated(subset=columns_to_compare, keep=False)
                 duplicate_data = merged_data[duplicate_rows]
                 # duplicate_data = duplicate_data.sort_values(by=['item_id'])
+                duplicate_data = duplicate_data.loc[:, ~duplicate_data.columns.str.contains('^Unnamed')]
                 duplicate_data.to_excel('duplicate.xlsx')
                 for index, row in duplicate_data.iterrows():
                     if row['data_origin'] == 'sql':
@@ -798,7 +895,7 @@ class MainWindow(QMainWindow):
                                         'contnumber', 'volume', 'page_begin', 'page_end', 'language',
                                         'doi', 'edn', 'grnti', 'risc', 'corerisc']].values)
                 if(len(data_from_sql) > 0):
-                    self.showDialog(data_from_sql, data_from_excel, index_sql, index_excel)
+                    # self.showDialog(data_from_sql, data_from_excel, index_sql, index_excel)
                     merged_data = merged_data[~((merged_data.index.isin(index_sql)) & (merged_data['data_origin'] == 'sql'))]
                     merged_data = merged_data[~((merged_data.index.isin(index_excel)) & (merged_data['data_origin'] == 'excel'))]
                 merged_data.drop("data_origin", axis=1, inplace=True)
@@ -818,13 +915,38 @@ class MainWindow(QMainWindow):
             elif table_name == 'authors_organisations':
                 merged_data = pd.concat([data_frame, existing_data])
                 merged_data = merged_data.drop_duplicates()
+                merged_data = merged_data.loc[:, ~merged_data.columns.str.contains('^Unnamed')]
                 merged_data.to_excel('merged_ao.xlsx')
+                start_time = time.time()
+                deduplicate_start = time.time()
                 deduplicate_excel('merged_ao.xlsx')
+                deduplicate_end = time.time()
+                print(f"Time spent on deduplicate_excel: {deduplicate_end - deduplicate_start} seconds")
+                update_start = time.time()
                 data = update_elibrary_id('merged_ao.xlsx')
+                update_end = time.time()
+                print(f"Time spent on update_elibrary_id: {update_end - update_start} seconds")
+                merge_start = time.time()
                 data = merge_similar(data)
+                merge_end = time.time()
+                print(f"Time spent on merge_similar: {merge_end - merge_start} seconds")
+                combine_start = time.time()
                 data = combine_people(data)
+                combine_end = time.time()
+                print(f"Time spent on combine_people: {combine_end - combine_start} seconds")
+
+                fill_start = time.time()
                 fill_excel_with_data(data, 'possible_duplicate_people.xlsx')
-                add_url_to_person_article('possible_duplicate_people.xlsx', 'merged_link.xlsx', 'merged.xlsx')
+                fill_end = time.time()
+                print(f"Time spent on fill_excel_with_data: {fill_end - fill_start} seconds")
+
+                end_time = time.time()
+                total_time = end_time - start_time
+                print(f"Total execution time: {total_time} seconds")
+                if journal:
+                    add_url_to_person_article('possible_duplicate_people.xlsx', 'merged_link.xlsx', 'merged.xlsx',  journal, conferences)
+                elif conferences:
+                    add_url_to_person_article('possible_duplicate_people.xlsx', 'merged_link.xlsx', 'conference_merged.xlsx', journal, conferences)
                 add_dropdown_with_ids_to_excel(data, 'possible_duplicate_people.xlsx')
                 run_excel()
                 update_author_id_on_choice('possible_duplicate_people.xlsx','merged_ao.xlsx', 'merged_ao.xlsx')
@@ -846,17 +968,25 @@ class MainWindow(QMainWindow):
                 merged_data = pd.concat([data_frame, existing_data])
                 merged_data = merged_data.loc[:, ~merged_data.columns.str.contains('^Unnamed')]
                 merged_data.drop_duplicates(inplace=True)
-                merged_data.to_sql(table_name, engine, if_exists='replace', index=False)
+                merged_data.to_sql(table_name, engine, if_exists='replace', index = False, dtype = {
+    'additional_author_id': sqlalchemy.types.BigInteger,
+    'author_id': sqlalchemy.types.BigInteger })
                 merged_data.to_excel('alternative_ids_merged.xlsx')
+            elif table_name == 'conference':
+                merged_data = pd.concat([data_frame, existing_data])
+                merged_data = merged_data.loc[:, ~merged_data.columns.str.contains('^Unnamed')]
+                merged_data.drop_duplicates(inplace=True)
+                merged_data.to_sql(table_name, engine, if_exists='replace', index=False)
+                merged_data.to_excel('conference_merged.xlsx')
         except Exception as e:
             print(f"An error occurred: {e}")
         finally:
             pass
-    def importButtonClickHandler(self):
+    def importButtonClickHandler(self, journal, conferences):
         self.ui.progressBar.setValue(0)
         fname = QFileDialog.getOpenFileName(self, "Open XML file", "", "All Files (*);; XML Files (*.xml)")
         if fname[0]:
-            parse_articles_to_excel(fname[0])
+            parse_articles_to_excel(fname[0], journal, conferences)
             self.ui.progressBar.setValue(10)
             self.ui.progressBar.setValue(20)
             self.ui.progressBar.setValue(30)
@@ -866,14 +996,18 @@ class MainWindow(QMainWindow):
             update_rinc_ids('authors_organisations.xlsx', 'authors_ref.xlsx', sheet_name='РИНЦ ID')
             self.ui.progressBar.setValue(40)
             self.ui.progressBar.setValue(50)
-            self.import_xlsx_to_postgresql2(database_parametres, 'article.xlsx', 'article', None)
-            self.import_xlsx_to_postgresql2(database_parametres, 'article_authors_linkage.xlsx','article_authors_linkage', None)
-            self.import_xlsx_to_postgresql2(database_parametres, 'authors_organisations.xlsx', 'authors_organisations', False)
+            if journal:
+                self.import_xlsx_to_postgresql2(database_parametres, 'article.xlsx', 'article', None, journal, conferences)
+            elif conferences:
+                self.import_xlsx_to_postgresql2(database_parametres, 'conference.xlsx', 'conference', None,  journal, conferences)
+            self.import_xlsx_to_postgresql2(database_parametres, 'article_authors_linkage.xlsx','article_authors_linkage', None, journal, conferences)
+            self.import_xlsx_to_postgresql2(database_parametres, 'authors_organisations.xlsx', 'authors_organisations', False, journal, conferences)
             self.ui.progressBar.setValue(60)
             self.ui.progressBar.setValue(70)
-            self.import_xlsx_to_postgresql2(database_parametres, 'alternative_ids.xlsx', 'alternative_author_ids', None)
+            self.import_xlsx_to_postgresql2(database_parametres, 'alternative_ids.xlsx', 'alternative_author_ids', None,  journal, conferences)
             self.ui.progressBar.setValue(80)
             self.ui.progressBar.setValue(90)
+            create_postgres_backup()
             self.ui.progressBar.setValue(100)
             QMessageBox.information(self, "Успешный импорт", "Данные были перенесены в Базу Данных!")
         else:
@@ -907,10 +1041,7 @@ class MainWindow(QMainWindow):
             conn.close()
 
         except Error as e:
-            # Catching specific error
-            # Handle the exception here
             print(f"Error: {e}")
-            # You can add more specific error handling or logging here if needed
 
     def userChoicePatternFetchFromDB(self,columns):
         query = """
@@ -1041,9 +1172,9 @@ class MainWindow(QMainWindow):
             if selected_year_from == 'None' and selected_year_to == 'None' and text == '':
              pass
             elif (selected_year_from != 'None' and selected_year_to == 'None' and text == ''):
-             specify_where_basic.append(f" subquery.year = {selected_year_from}")
+             specify_where_basic.append(f" subquery.year = {selected_year_from} ")
             elif (selected_year_from != 'None' and selected_year_to != 'None' and text == ''):
-             specify_where_basic.append(f" year BETWEEN {selected_year_from}  AND  {selected_year_to}")
+             specify_where_basic.append(f" year BETWEEN {selected_year_from}  AND  {selected_year_to} ")
             elif selected_year_from == 'None' and selected_year_to == 'None' and text != '':
                 specify_where_advanced.append(f" author_id IN (SELECT  author_id FROM authors_organisations WHERE  author_name || ' ' || author_initials = '{text}')")
             elif (selected_year_from != 'None' and selected_year_to != 'None' and text != ''):
@@ -1154,10 +1285,16 @@ class MainWindow(QMainWindow):
         self.ui.stackedWidget.setCurrentIndex(5)
 
     def on_article_authorDB_button_toggled(self):
-        self.ui.stackedWidget.setCurrentIndex(6)
+        self.ui.stackedWidget.setCurrentIndex(7)
 
     def on_authorsDB_button_toggled(self):
-        self.ui.stackedWidget.setCurrentIndex(7)
+        self.ui.stackedWidget.setCurrentIndex(8)
+
+    def on_restore_db_button_toggled(self):
+        self.ui.stackedWidget.setCurrentIndex(6)
+
+    def on_conferenceDB_button_toggled(self):
+        self.ui.stackedWidget.setCurrentIndex(9)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

@@ -11,7 +11,7 @@ def extract_numbers_from_string(input_string):
 
 def parse_articles_to_excel(xml_filename):
     query = """
-                         SELECT MAX(counter) FROM article
+                         SELECT MAX(counter) FROM article_authors_linkage
                         """
 
     conn = psycopg2.connect(
@@ -100,6 +100,6 @@ def parse_articles_to_excel(xml_filename):
 
 
 if __name__ == "__main__":
-    parse_articles_to_excel('../xml_parser/article.xml')
+    parse_articles_to_excel('article.xml')
 
 
